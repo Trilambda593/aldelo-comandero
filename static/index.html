@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aldelo POS - Comandero Tablet</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Aldelo POS">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/img/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/img/icon-512.png">
+  <meta name="theme-color" content="#0078d7">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="stylesheet" href="/static/css/style.css?v=28">
+</head>
+<body>
+
+  <!-- FLOATING TOAST -->
+  <div id="pos-toast" class="pos-toast">
+    <span id="toast-icon">✅</span>
+    <span id="toast-msg">Mensaje</span>
+  </div>
+
+  <!-- =======================================================
+       PANTALLA 0: PANTALLA PRINCIPAL ALDELO POS
+       (SOLO VISIBLES: MESAS, REVISAR Y OFICINA - CLON EXACTO)
+       ======================================================= -->
+  <section id="screen-home" class="screen active">
+    <div class="home-container">
+      
+      <!-- LOGO Y MATRIZ DE BOTONES 6x3 IDÉNTICA A ALDELO -->
+      <div class="home-left-grid-wrap">
+        
+        <div class="home-logo-box">
+          <h1>ALDELO POS</h1>
+        </div>
+
+        <div class="home-pos-matrix">
+          
+          <!-- FILA 1 -->
+          <div class="pos-mat-btn btn-empty"></div> <!-- Col 1: alineado debajo del logo -->
+
+          <!-- 1. MESAS -->
+          <div class="pos-mat-btn pos-btn-mesas" onclick="app.startDineIn()">
+            <img src="/static/img/aldelo_mesas.png" class="pos-mat-icon-img" alt="Mesas">
+            <span class="mat-label">Mesas</span>
+          </div>
+
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+
+          <!-- FILA 2 -->
+          <!-- 2. REVISAR -->
+          <div class="pos-mat-btn pos-btn-revisar" onclick="app.startRecall()">
+            <img src="/static/img/aldelo_revisar.png" class="pos-mat-icon-img" alt="Revisar">
+            <span class="mat-label">Revisar</span>
+          </div>
+
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+
+          <!-- FILA 3 -->
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+          <div class="pos-mat-btn btn-empty"></div>
+
+          <!-- 3. OFICINA -->
+          <div class="pos-mat-btn pos-btn-oficina" onclick="app.startBackOffice()">
+            <img src="/static/img/aldelo_oficina.png" class="pos-mat-icon-img" alt="Oficina">
+            <span class="mat-label">Oficina</span>
+          </div>
+
+          <div class="pos-mat-btn btn-empty"></div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BARRA INFERIOR DE ESTADO (CLON LIMPIO ALDELO) -->
+    <div class="home-bottom-status-bar">
+      <span id="home-clock">15/11/2026 06:40:00</span>
+      <span id="home-db-status">Estación 1 (PORTONES SONESTA)</span>
+    </div>
+  </section>
+
+  <!-- =======================================================
+       PANTALLA: BACK OFFICE (CONFIGURACIÓN DE IMPRESORAS CON PIN 5)
+       ======================================================= -->
+  <section id="screen-backoffice" class="screen">
+    <div class="backoffice-window">
+      
+      <div class="bo-titlebar">
+        <div>
+          <h2 id="bo-title-header">Ajustes de Estación - Estación 16 (Aldelo Back Office)</h2>
+          <div style="font-size: 13px; color: #444; margin-top: 4px; display: flex; align-items: center; gap: 8px;">
+            <label for="bo-select-station" style="font-weight: bold;">Estación Aldelo:</label>
+            <select id="bo-select-station" class="bo-select" style="padding: 3px 8px; font-weight: bold; border-radius: 4px; border: 1px solid #7f9db9;" onchange="app.changeBoStation(this.value)">
+              <!-- Populated dynamically -->
+            </select>
+            <span id="bo-station-badge" style="font-size: 11px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Estación Activa de este PC</span>
+          </div>
+        </div>
+        <span style="font-size: 13px; font-weight: bold; color: #0055ea; background: #eef3ff; padding: 6px 12px; border: 1px solid #c0d0f0; border-radius: 4px;">
+          Acceso: Gerente / Administrador (PIN 1 / Nivel 5)
+        </span>
+      </div>
+
+      <!-- PESTAÑAS PRINCIPALES (IDÉNTICAS A ALDELO FOTO OFICIAL) -->
+      <div class="bo-tabs-row">
+        <div class="bo-tab-pill active" id="bo-tab-receipt" onclick="app.switchBoMainTab('receipt')">Impresora de recibos</div>
+        <div class="bo-tab-pill" id="bo-tab-packer" onclick="app.switchBoMainTab('packer')">Impresora del empaquetador</div>
+        <div class="bo-tab-pill" id="bo-tab-kitchen-bar" onclick="app.switchBoMainTab('kitchen-bar')">Cocina/Bar</div>
+        <div class="bo-tab-pill" id="bo-tab-label" onclick="app.switchBoMainTab('label')">Impresora de etiquetas</div>
+        <div class="bo-tab-pill" id="bo-tab-report" onclick="app.switchBoMainTab('report')">Impresora de reportes</div>
+        <div class="bo-tab-pill" id="bo-tab-other" onclick="app.switchBoMainTab('other')">Otros</div>
+      </div>
+
+      <div class="bo-card-body">
+        
+        <!-- ================= PANEL 1: IMPRESORA DE RECIBOS ================= -->
+        <div id="bo-panel-receipt">
+          <div style="border: 2px solid #7f9db9; padding: 18px 22px; border-radius: 4px; background: #fff; margin-bottom: 14px;">
+            
+            <div style="display: grid; grid-template-columns: 220px 1fr; align-items: center; row-gap: 16px; column-gap: 16px; margin-bottom: 18px;">
+              
+              <!-- Impresora de recibos -->
+              <label style="font-size: 14px; font-weight: bold; color: #000;">Impresora de recibos</label>
+              <div>
+                <select class="bo-select" id="bo-receipt-printer" style="width: 100%; max-width: 460px; padding: 6px 8px; font-size: 14px; font-weight: 500;"></select>
+              </div>
+
+              <!-- Tipo de impresora -->
+              <label style="font-size: 14px; font-weight: bold; color: #000;">Tipo de impresora</label>
+              <div>
+                <select class="bo-select" id="bo-receipt-type" style="width: 100%; max-width: 460px; padding: 6px 8px; font-size: 14px;"></select>
+              </div>
+
+              <!-- Código de control del logo para el recibo -->
+              <label style="font-size: 13px; color: #222;">Código de control del logo para el recibo</label>
+              <div style="display: flex; gap: 8px; align-items: center; max-width: 460px;">
+                <input type="text" class="bo-input" id="bo-receipt-logo-code" placeholder="" style="flex: 1;" readonly value="">
+                <button type="button" class="bo-btn" style="background: #000; color: #fff; font-size: 12px; padding: 6px 12px; border-radius: 4px; font-weight: bold; white-space: nowrap;" onclick="app.showToast('Control ESC/POS TM predeterminado de Aldelo')">Código de Epson TM</button>
+              </div>
+
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #7f9db9; margin: 16px 0;">
+
+            <!-- Checkbox Aldelo -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="bo-receipt-no-ask-check" style="width: 18px; height: 18px; cursor: pointer;">
+              <label for="bo-receipt-no-ask-check" style="font-size: 13px; color: #222; cursor: pointer;">No preguntar al usuario si quiere imprimir la cuenta al terminar de usar la pantalla para ordenar</label>
+            </div>
+
+          </div>
+
+          <div style="font-size: 13px; color: #333; background: #f0f7ff; padding: 10px 14px; border: 1px dashed #7f9db9; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              🧾 <strong>Recibos y Pre-Cuentas:</strong> Al presionar <em>"Imprimir Cuenta"</em> en la orden o mesa, el ticket se emite por esta impresora asignada en Aldelo.
+            </div>
+            <button type="button" class="bo-btn" style="background: #0066cc; color: #fff; padding: 6px 14px; font-size: 12px; border-radius: 4px; cursor: pointer;" onclick="app.testReceiptPrinter()">Probar Recibo</button>
+          </div>
+        </div>
+
+        <!-- ================= PANEL 2: COCINA / BAR ================= -->
+        <div id="bo-panel-kitchen-bar" style="display: none;">
+          <!-- SUB-PESTAÑAS (Cocina vs Barra) -->
+          <div class="bo-subtabs-row">
+            <button class="bo-subtab-btn active" id="bo-subtab-kitchen" onclick="app.switchBoTab('kitchen')">Cocina (Kitchen)</button>
+            <button class="bo-subtab-btn" id="bo-subtab-bar" onclick="app.switchBoTab('bar')">Barra (Bar)</button>
+          </div>
+
+          <!-- PANEL DE COCINA (6 ESTACIONES OFICIALES ALDELO FOTO 1) -->
+          <div id="bo-panel-kitchen">
+            <div class="bo-grid-row bo-grid-header">
+              <label># Cocina / Título</label>
+              <label>Impresora</label>
+              <label>Tipo (Preset Oficial Aldelo)</label>
+            </div>
+
+            <!-- #1 Cocina -->
+            <div class="bo-station-block">
+              <span class="bo-station-tag">#1 Cocina</span>
+              <div class="bo-grid-row">
+                <input type="text" class="bo-input" id="bo-k1-title" placeholder="Kitchen">
+                <select class="bo-select" id="bo-k1-printer"></select>
+                <select class="bo-select" id="bo-k1-type"></select>
+              </div>
+            </div>
+
+            <!-- #2 Cocina -->
+            <div class="bo-station-block">
+              <span class="bo-station-tag">#2 Cocina</span>
+              <div class="bo-grid-row">
+                <input type="text" class="bo-input" id="bo-k2-title" placeholder="EMPLATAD">
+                <select class="bo-select" id="bo-k2-printer"></select>
+                <select class="bo-select" id="bo-k2-type"></select>
+              </div>
+            </div>
+
+            <!-- #3 Cocina -->
+            <div class="bo-station-block">
+              <span class="bo-station-tag">#3 Cocina</span>
+              <div class="bo-grid-row">
+                <input type="text" class="bo-input" id="bo-k3-title" placeholder="">
+                <select class="bo-select" id="bo-k3-printer"></select>
+                <select class="bo-select" id="bo-k3-type"></select>
+              </div>
+            </div>
+
+            <!-- #4 Cocina -->
+            <div class="bo-station-block">
+              <span class="bo-station-tag">#4 Cocina</span>
+              <div class="bo-grid-row">
+                <input type="text" class="bo-input" id="bo-k4-title" placeholder="">
+                <select class="bo-select" id="bo-k4-printer"></select>
+                <select class="bo-select" id="bo-k4-type"></select>
+              </div>
+            </div>
+
+            <!-- #5 Cocina -->
+            <div class="bo-station-block">
+              <span class="bo-station-tag">#5 Cocina</span>
+              <div class="bo-grid-row">
+                <input type="text" class="bo-input" id="bo-k5-title" placeholder="">
+                <select class="bo-select" id="bo-k5-printer"></select>
+                <select class="bo-select" id="bo-k5-type"></select>
+              </div>
+            </div>
+
+            <!-- #6 Cocina -->
+            <div class="bo-station-block">
+              <span class="bo-station-tag">#6 Cocina</span>
+              <div class="bo-grid-row">
+                <input type="text" class="bo-input" id="bo-k6-title" placeholder="">
+                <select class="bo-select" id="bo-k6-printer"></select>
+                <select class="bo-select" id="bo-k6-type"></select>
+              </div>
+            </div>
+
+            <div style="font-size: 13px; color: #555; margin-top: 14px; background: #fdfdfd; padding: 10px; border: 1px dashed #bbb; border-radius: 4px;">
+              💡 <strong>Nota del Sistema:</strong> Cualquier cambio guardado aquí se sincroniza directamente en la tabla <code>StationSettings</code> de tu base de datos de Aldelo.
+            </div>
+          </div>
+
+          <!-- PANEL DE BARRA -->
+          <div id="bo-panel-bar" style="display: none;">
+            <div class="bo-grid-row bo-grid-header">
+              <label>Título Barra</label>
+              <label>Impresora</label>
+              <label>Tipo</label>
+            </div>
+
+            <div class="bo-station-block">
+              <span class="bo-station-tag">Barra Principal</span>
+              <div class="bo-grid-row">
+                <input type="text" class="bo-input" id="bo-bar-title" value="Bar">
+                <select class="bo-select" id="bo-bar-printer"></select>
+                <select class="bo-select" id="bo-bar-type"></select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PANEL 3: PLACEHOLDER OTRAS PESTAÑAS ================= -->
+        <div id="bo-panel-placeholder" style="display: none; padding: 40px; text-align: center; color: #666;">
+          <h3 id="bo-placeholder-title" style="color: #333; margin-bottom: 8px;">Configuración de Estación</h3>
+          <p id="bo-placeholder-desc" style="font-size: 14px;">Esta opción está administrada directamente desde Aldelo For Restaurants POS.</p>
+        </div>
+
+        <!-- BOTONES INFERIORES IDÉNTICOS A FOTO ALDELO -->
+        <div class="bo-bottom-actions">
+          <button class="bo-btn bo-btn-cancel" onclick="app.goHome()">Cancelar</button>
+          <button class="bo-btn bo-btn-test" id="bo-btn-test-action" onclick="app.testBackOfficeCurrent()">Fuente de Información / Probar</button>
+          <button class="bo-btn bo-btn-save" onclick="app.saveBackOfficePrinters()">Salvar</button>
+          <button class="bo-btn bo-btn-done" onclick="app.saveAndCloseBackOffice()">Listo</button>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =======================================================
+       PANTALLA: REVISAR LA ORDEN (CLON EXACTO ALDELO POS)
+       ======================================================= -->
+  <section id="screen-recall" class="screen">
+    <!-- BARRA SUPERIOR IDÉNTICA A ALDELO -->
+    <div class="recall-topbar">
+      <div class="recall-title-text">Revisar la orden</div>
+      <div class="recall-top-actions">
+        <!-- ORDERS BATCH TRANSFER -->
+        <button class="recall-top-btn" onclick="app.showToast('Orders Batch Transfer')">
+          <svg viewBox="0 0 32 32" width="24" height="24">
+            <path d="M6 6 L20 6 L26 12 L26 26 L6 26 Z" fill="none" stroke="#ff3d00" stroke-width="2"/>
+            <path d="M14 18 L22 18 M18 14 L22 18 L18 22" fill="none" stroke="#ff3d00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Orders Batch<br>Transfer</span>
+        </button>
+
+        <!-- ORDENES ABIERTAS -->
+        <button class="recall-top-btn active-top" onclick="app.filterRecallType('all')">
+          <svg viewBox="0 0 32 32" width="24" height="24">
+            <rect x="6" y="4" width="20" height="24" rx="2" fill="none" stroke="#00e5ff" stroke-width="2"/>
+            <polyline points="10 12 13 15 19 9" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="10 20 13 23 19 17" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Ordenes<br>abiertas</span>
+        </button>
+
+        <!-- MIS ORDENES -->
+        <button class="recall-top-btn" onclick="app.filterMyOrders()">
+          <svg viewBox="0 0 32 32" width="24" height="24">
+            <circle cx="12" cy="12" r="5" fill="none" stroke="#00e5ff" stroke-width="2"/>
+            <path d="M5 26 C5 21 8 19 12 19 C14 19 15.5 19.5 17 20.5" fill="none" stroke="#00e5ff" stroke-width="2"/>
+            <path d="M21 16 L27 16 L24 22 L24 26 L21 26 Z" fill="none" stroke="#00e5ff" stroke-width="2"/>
+          </svg>
+          <span>Mis<br>ordenes</span>
+        </button>
+
+        <!-- BOTÓN CERRAR / LISTO (CÍRCULO VERDE) -->
+        <button class="recall-close-btn" onclick="app.closeRecallScreen()" title="Cerrar y Volver">
+          ✓
+        </button>
+      </div>
+    </div>
+
+    <div class="recall-screen-layout">
+      <!-- FILTROS IZQUIERDA (PULSADORES GRANDES CON ICONOS TIPO TABLET) -->
+      <aside class="recall-left-tabs">
+        <!-- TODOS TIPOS -->
+        <div class="recall-tab-btn active" data-filter="all" onclick="app.filterRecallType('all', this)">
+          <div class="recall-icon-box">
+            <svg viewBox="0 0 36 36" width="34" height="34">
+              <rect x="6" y="8" width="24" height="24" rx="2" fill="none" stroke="#ff9800" stroke-width="2.5"/>
+              <path d="M12 8 L12 4 L24 4 L24 8 Z" fill="#ff9800"/>
+              <circle cx="18" cy="18" r="4" fill="#ff9800"/>
+              <line x1="11" y1="26" x2="25" y2="26" stroke="#ff9800" stroke-width="2.5"/>
+            </svg>
+          </div>
+          <span>Todos tipos</span>
+        </div>
+
+        <!-- MESAS -->
+        <div class="recall-tab-btn" data-filter="1" onclick="app.filterRecallType('1', this)">
+          <div class="recall-icon-box">
+            <img src="/static/img/aldelo_mesas.png" width="34" height="34" alt="Mesas" style="object-fit: contain;">
+          </div>
+          <span>Mesas</span>
+        </div>
+
+        <!-- BAR -->
+        <div class="recall-tab-btn" data-filter="2" onclick="app.filterRecallType('2', this)">
+          <div class="recall-icon-box">
+            <svg viewBox="0 0 36 36" width="34" height="34">
+              <path d="M10 11 L10 28 C10 30 12 31 14 31 L22 31 C24 31 26 30 26 28 L26 11 Z" fill="#ffd600"/>
+              <rect x="8" y="6" width="20" height="5" rx="2" fill="#fff"/>
+              <path d="M26 14 C29 14 31 16 31 19 C31 22 29 24 26 24" fill="none" stroke="#ffd600" stroke-width="2.5"/>
+            </svg>
+          </div>
+          <span>Bar</span>
+        </div>
+
+        <!-- PARA LLEVAR -->
+        <div class="recall-tab-btn" data-filter="3" onclick="app.filterRecallType('3', this)">
+          <div class="recall-icon-box">
+            <svg viewBox="0 0 36 36" width="34" height="34">
+              <path d="M8 12 L28 12 L25 31 L11 31 Z" fill="none" stroke="#00e5ff" stroke-width="2.5"/>
+              <path d="M13 12 C13 7 15 5 18 5 C21 5 23 7 23 12" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <span>Para Llevar</span>
+        </div>
+
+        <!-- DRIVE-IN -->
+        <div class="recall-tab-btn" data-filter="4" onclick="app.filterRecallType('4', this)">
+          <div class="recall-icon-box">
+            <svg viewBox="0 0 36 36" width="34" height="34">
+              <path d="M6 22 L9 13 C10 10 12 9 15 9 L21 9 C24 9 26 10 27 13 L30 22 L31 25 L5 25 Z" fill="#ff5252"/>
+              <circle cx="10" cy="26" r="3.5" fill="#fff"/>
+              <circle cx="26" cy="26" r="3.5" fill="#fff"/>
+              <line x1="10" y1="17" x2="26" y2="17" stroke="#333" stroke-width="2"/>
+            </svg>
+          </div>
+          <span>Drive-In</span>
+        </div>
+
+        <!-- DOMICILIO -->
+        <div class="recall-tab-btn" data-filter="5" onclick="app.filterRecallType('5', this)">
+          <div class="recall-icon-box">
+            <svg viewBox="0 0 36 36" width="34" height="34">
+              <rect x="4" y="11" width="17" height="14" rx="2" fill="#ff1744"/>
+              <path d="M21 16 L27 16 L31 20 L31 25 L21 25 Z" fill="#ff1744"/>
+              <circle cx="10" cy="27" r="3.5" fill="#fff"/>
+              <circle cx="25" cy="27" r="3.5" fill="#fff"/>
+            </svg>
+          </div>
+          <span>Domicilio</span>
+        </div>
+      </aside>
+
+      <!-- GRILLA CENTRAL DE ÓRDENES (CLON ALDELO 2 COLUMNAS) -->
+      <main class="recall-center-area">
+        <div class="recall-orders-banner" id="recall-orders-banner">Ordenes abiertas</div>
+        <div class="recall-cards-grid" id="recall-cards-grid"></div>
+
+        <!-- BARRA INFERIOR DE ACCIONES Y CONTADOR -->
+        <div class="recall-bottom-bar">
+          <button class="recall-bot-icon-btn" onclick="app.scrollRecallDown()" title="Desplazar hacia abajo">
+            ▼
+          </button>
+          <button class="recall-bot-icon-btn" onclick="app.showToast('Acción de lote')" title="Descargar / Acciones">
+            <svg viewBox="0 0 24 24" width="22" height="22">
+              <path d="M12 4 L12 14 M8 10 L12 14 L16 10" fill="none" stroke="#ff3d00" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M4 16 L4 19 C4 20 5 21 6 21 L18 21 C19 21 20 20 20 19 L20 16" fill="none" stroke="#ff3d00" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div class="recall-total-box">
+            <div class="recall-count-title">NÚMERO DE ORDENES</div>
+            <div class="recall-count-number" id="recall-count-num">0</div>
+          </div>
+        </div>
+      </main>
+
+      <!-- PANEL DERECHO: BÚSQUEDA RÁPIDA CON TECLADO GRANDE -->
+      <aside class="recall-search-panel">
+        <div class="recall-search-header">Busqueda rapida</div>
+        <div class="recall-search-display">
+          <span id="recall-search-txt"></span>
+          <button class="recall-clear-input-btn" onclick="app.recallClearSearch()">✕</button>
+        </div>
+
+        <div class="recall-keypad-grid">
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('7')">7</button>
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('8')">8</button>
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('9')">9</button>
+
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('4')">4</button>
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('5')">5</button>
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('6')">6</button>
+
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('1')">1</button>
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('2')">2</button>
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('3')">3</button>
+
+          <!-- BOTÓN TOGGLE: POR NÚMERO DE CUENTA / POR #ORDEN -->
+          <button class="recall-key-btn recall-mode-btn" id="btn-recall-search-mode" onclick="app.toggleRecallSearchMode()">
+            Por número de cuenta
+          </button>
+          <button class="recall-key-btn" onclick="app.recallTypeDigit('0')">0</button>
+          <!-- BOTÓN BUSCAR (DOCUMENTO + LUPA VERDE) -->
+          <button class="recall-key-btn recall-search-act-btn" onclick="app.recallSearchSubmit()" title="Buscar">
+            <svg viewBox="0 0 24 24" width="30" height="30">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="#00e676" stroke-width="2"/>
+              <polyline points="14 2 14 8 20 8" fill="none" stroke="#00e676" stroke-width="2"/>
+              <circle cx="11" cy="14" r="3" fill="none" stroke="#00e676" stroke-width="2"/>
+              <line x1="13.2" y1="16.2" x2="16.5" y2="19.5" stroke="#00e676" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- =======================================================
+       PANTALLA: ORDEN REVISADA (CLON EXACTO ALDELO FOTO 3)
+       ======================================================= -->
+  <section id="screen-order-revisada" class="screen">
+    <div class="rev-topbar">
+      <div class="rev-title-text">Orden revisada</div>
+      <button class="rev-close-circle-btn" onclick="app.showScreen('screen-recall')" title="Volver a Revisar la orden">
+        ✓
+      </button>
+    </div>
+
+    <div class="rev-workspace">
+      <!-- BOTONES IZQUIERDA -->
+      <aside class="rev-side-actions rev-left-actions">
+        <!-- APRESURAR LA ORDEN -->
+        <button class="rev-action-btn" onclick="app.rushCurrentOrder()">
+          <div class="rev-icon-box">
+            <svg viewBox="0 0 32 32" width="34" height="34">
+              <path d="M8 4 L20 4 L26 10 L26 28 L8 28 Z" fill="none" stroke="#00e5ff" stroke-width="2"/>
+              <line x1="12" y1="12" x2="18" y2="12" stroke="#00e5ff" stroke-width="2"/>
+              <line x1="12" y1="16" x2="22" y2="16" stroke="#00e5ff" stroke-width="2"/>
+              <circle cx="21" cy="21" r="7" fill="#000" stroke="#00e5ff" stroke-width="2"/>
+              <polyline points="21 17 21 21 24 21" stroke="#00e5ff" stroke-width="2"/>
+            </svg>
+          </div>
+          <span>Apresurar la<br>orden</span>
+        </button>
+
+        <!-- ALERTADOR (PAGER) -->
+        <button class="rev-action-btn" onclick="app.showToast('Alertador (pager) activado')">
+          <div class="rev-icon-box">
+            <svg viewBox="0 0 32 32" width="34" height="34">
+              <rect x="9" y="8" width="14" height="20" rx="3" fill="none" stroke="#00e5ff" stroke-width="2"/>
+              <line x1="13" y1="3" x2="13" y2="8" stroke="#00e5ff" stroke-width="2" stroke-linecap="round"/>
+              <rect x="12" y="11" width="8" height="5" fill="none" stroke="#00e5ff" stroke-width="1.5"/>
+              <circle cx="12" cy="19" r="1" fill="#00e5ff"/>
+              <circle cx="16" cy="19" r="1" fill="#00e5ff"/>
+              <circle cx="20" cy="19" r="1" fill="#00e5ff"/>
+              <circle cx="12" cy="22" r="1" fill="#00e5ff"/>
+              <circle cx="16" cy="22" r="1" fill="#00e5ff"/>
+              <circle cx="20" cy="22" r="1" fill="#00e5ff"/>
+              <circle cx="16" cy="25" r="1" fill="#00e5ff"/>
+            </svg>
+          </div>
+          <span>Alertador<br>(pager)</span>
+        </button>
+      </aside>
+
+      <!-- CENTRO: TICKET DE CUENTA BLANCO MONOSPACE -->
+      <main class="rev-center-ticket-wrap">
+        <div class="rev-ticket-card">
+          <!-- CABECERA DE TICKET -->
+          <div class="rev-ticket-header">
+            <div class="rev-t-row">
+              <span id="rev-waiter-name">Mesero: Oscar</span>
+              <span>Estación: 1</span>
+            </div>
+            <div class="rev-t-divider"></div>
+            <div class="rev-t-row">
+              <span id="rev-order-id-txt"># de Orden: 14</span>
+              <span id="rev-order-type-txt">Mesas</span>
+            </div>
+            <div class="rev-t-row">
+              <span id="rev-table-name-txt">Mesa: Bar15</span>
+              <span id="rev-guests-txt">Personas: 1</span>
+            </div>
+            <div class="rev-t-divider"></div>
+          </div>
+
+          <!-- LISTA DE PLATOS -->
+          <div class="rev-ticket-items" id="rev-ticket-items-list">
+            <!-- Items rendered dynamically -->
+          </div>
+
+          <!-- PIE DE TICKET (NÚMERO DE CUENTA Y FECHA) -->
+          <div class="rev-ticket-footer">
+            <div class="rev-acc-num-line" id="rev-account-num-txt">&gt;&gt; # de cuenta: 14 &lt;&lt;</div>
+            <div class="rev-date-time-line" id="rev-datetime-txt">16/11/2026 01:00 a. m.</div>
+          </div>
+
+          <!-- BOTONES NAVEGACIÓN FLECHAS -->
+          <div class="rev-nav-arrows">
+            <button class="rev-arrow-btn" onclick="app.scrollRevTicket(-60)">▲</button>
+            <button class="rev-arrow-btn" onclick="app.scrollRevTicket(60)">▼</button>
+          </div>
+
+          <!-- BARRA INFERIOR DE TOTALES -->
+          <div class="rev-totals-bar">
+            <div class="rev-tot-box">
+              <span class="rev-tot-lbl">Subtotal</span>
+              <span class="rev-tot-val" id="rev-subtotal-val">6,95</span>
+            </div>
+            <div class="rev-tot-box">
+              <span class="rev-tot-lbl">Impuesto</span>
+              <span class="rev-tot-val" id="rev-tax-val">1,05</span>
+            </div>
+            <div class="rev-tot-box">
+              <span class="rev-tot-lbl" style="color: #ff9800;">Total debido</span>
+              <span class="rev-tot-val due" id="rev-total-due-val">$8,00</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- BOTONES DERECHA -->
+      <aside class="rev-side-actions rev-right-actions">
+        <!-- EDITAR -->
+        <button class="rev-action-btn" onclick="app.editOrderFromRevisada()">
+          <div class="rev-icon-box">
+            <svg viewBox="0 0 32 32" width="34" height="34">
+              <rect x="6" y="6" width="18" height="22" rx="2" fill="none" stroke="#ab47bc" stroke-width="2"/>
+              <line x1="10" y1="11" x2="16" y2="11" stroke="#ab47bc" stroke-width="2"/>
+              <line x1="10" y1="16" x2="18" y2="16" stroke="#ab47bc" stroke-width="2"/>
+              <path d="M16 24 L26 14 L28 16 L18 26 L15 27 Z" fill="#ab47bc"/>
+            </svg>
+          </div>
+          <span>Editar</span>
+        </button>
+
+        <!-- IMPRIMIR -->
+        <button class="rev-action-btn" onclick="app.printCurrentOrderFromRevisada()">
+          <div class="rev-icon-box">
+            <svg viewBox="0 0 32 32" width="34" height="34">
+              <polyline points="8 12 8 4 24 4 24 12" fill="none" stroke="#00e676" stroke-width="2"/>
+              <path d="M8 22 L5 22 C4 22 3 21 3 20 L3 14 C3 13 4 12 5 12 L27 12 C28 12 29 13 29 14 L29 20 C29 21 28 22 27 22 L24 22" fill="none" stroke="#00e676" stroke-width="2"/>
+              <rect x="8" y="18" width="16" height="10" fill="#000" stroke="#00e676" stroke-width="2"/>
+            </svg>
+          </div>
+          <span>Imprimir</span>
+        </button>
+      </aside>
+
+      <!-- BOTÓN DIVIDIDO EN ESQUINA INFERIOR DERECHA -->
+      <div class="rev-bottom-right-dock">
+        <button class="rev-split-btn" onclick="app.showToast('Función Dividido')">Dividido</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================================================
+       PANTALLA 1: PIN DE ACCESO
+       ======================================================= -->
+  <section id="screen-pin" class="screen">
+    <div class="pos-topbar">
+      <div class="pos-title-badge">
+        <span class="pos-logo" onclick="app.goHome()" style="cursor: pointer;">ALDELO POS</span>
+        <span class="pos-status-text" id="pin-sub-header">Código de Seguridad</span>
+      </div>
+      <button class="room-tab-btn" style="background: #37474f; font-size: 13px;" onclick="app.goHome()">🏠 Cancelar</button>
+    </div>
+
+    <div class="pin-screen-container">
+      <div class="pin-header" id="pin-title-txt">Ingrese Código de Acceso</div>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px;">
+        <button class="key-btn btn-help" style="width: 50px; height: 50px; font-size: 22px;" onclick="app.showWaitersHelp()">?</button>
+        <div class="pin-display-box" id="pin-display" style="margin-bottom: 0;"></div>
+        <button class="key-btn btn-backspace" style="width: 50px; height: 50px; font-size: 20px;" onclick="app.pinBackspace()">⌫</button>
+      </div>
+
+      <div class="keypad-grid">
+        <button class="key-btn" onclick="app.pinPress('7')">7</button>
+        <button class="key-btn" onclick="app.pinPress('8')">8</button>
+        <button class="key-btn" onclick="app.pinPress('9')">9</button>
+
+        <button class="key-btn" onclick="app.pinPress('4')">4</button>
+        <button class="key-btn" onclick="app.pinPress('5')">5</button>
+        <button class="key-btn" onclick="app.pinPress('6')">6</button>
+
+        <button class="key-btn" onclick="app.pinPress('1')">1</button>
+        <button class="key-btn" onclick="app.pinPress('2')">2</button>
+        <button class="key-btn" onclick="app.pinPress('3')">3</button>
+
+        <button class="key-btn btn-clear" onclick="app.pinClear()">✕</button>
+        <button class="key-btn" onclick="app.pinPress('0')">0</button>
+        <button class="key-btn btn-check" onclick="app.submitPin()">✓</button>
+      </div>
+
+      <div class="pin-help-text" id="pin-help-message" style="margin-top: 20px; color: #8fa3bf;">
+        <p>🔒 Validación con Access (EmployeeFiles / SecuritySettings). PIN <strong>1</strong>: Administrador (Acceso Máximo).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================================================
+       PANTALLA 2: SELECCIÓN DE MESA
+       ======================================================= -->
+  <section id="screen-tables" class="screen">
+    <div class="pos-topbar">
+      <div class="pos-title-badge">
+        <span class="pos-logo" onclick="app.goHome()" style="cursor: pointer;">ALDELO POS</span>
+        <span class="pos-status-text">Seleccione Número de Mesa</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button class="room-tab-btn" style="background: #1565c0; font-size: 13px;" onclick="app.startRecall()">🔍 Buscar Orden</button>
+        <button class="room-tab-btn" style="background: #2e7d32; font-size: 13px;" onclick="app.loadTables()">🔄 Refrescar</button>
+        <button class="room-tab-btn" style="background: #455a64; font-size: 13px;" onclick="app.goHome()">🏠 Inicio</button>
+      </div>
+    </div>
+
+    <div class="table-room-tabs" id="room-tabs-container"></div>
+
+    <div class="tables-grid-area">
+      <div class="tables-layout-canvas" id="tables-canvas"></div>
+    </div>
+  </section>
+
+  <!-- =======================================================
+       PANTALLA: CHEQUES DE MESA (CLON EXACTO ALDELO FOTO 1)
+       ======================================================= -->
+  <section id="screen-table-checks" class="screen">
+    <div class="checks-topbar">
+      <div class="checks-table-title" id="checks-table-label">Mesa</div>
+      <div class="checks-top-actions">
+        <button class="chk-action-btn" onclick="app.newCheckOnTable()">
+          <div class="chk-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4081" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+          </div>
+          <span>Nueva</span>
+        </button>
+
+        <button class="chk-action-btn" onclick="app.editSelectedCheck()">
+          <div class="chk-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ab47bc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          </div>
+          <span>Editar</span>
+        </button>
+
+        <button class="chk-action-btn" onclick="app.printSelectedCheck()">
+          <div class="chk-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00e676" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          </div>
+          <span>Imprimir</span>
+        </button>
+
+        <button class="chk-action-btn" onclick="app.printAllChecksOnTable()">
+          <div class="chk-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff4081" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+          </div>
+          <span>Imprimir todos</span>
+        </button>
+
+        <button class="chk-check-circle-btn" onclick="app.showScreen('screen-tables')" title="Volver a Mesas">
+          ✓
+        </button>
+      </div>
+    </div>
+
+    <!-- ÁREA DE TARJETAS DE CHEQUES -->
+    <div class="checks-cards-container" id="checks-cards-container"></div>
+  </section>
+
+  <!-- =======================================================
+       PANTALLA 3: TOTAL DE PERSONAS (GUESTS)
+       ======================================================= -->
+  <section id="screen-guests" class="screen">
+    <div class="pin-screen-container guests-keypad">
+      <div class="pin-header" style="color: #ff9800;">Ingrese Total de Personas</div>
+      <div class="pin-display-box" id="guests-display" style="border-color: #ff9800; color: #ff9800;">4</div>
+
+      <div class="keypad-grid" style="margin-top: 16px;">
+        <button class="key-btn" onclick="app.guestPress('7')">7</button>
+        <button class="key-btn" onclick="app.guestPress('8')">8</button>
+        <button class="key-btn" onclick="app.guestPress('9')">9</button>
+
+        <button class="key-btn" onclick="app.guestPress('4')">4</button>
+        <button class="key-btn" onclick="app.guestPress('5')">5</button>
+        <button class="key-btn" onclick="app.guestPress('6')">6</button>
+
+        <button class="key-btn" onclick="app.guestPress('1')">1</button>
+        <button class="key-btn" onclick="app.guestPress('2')">2</button>
+        <button class="key-btn" onclick="app.guestPress('3')">3</button>
+
+        <button class="key-btn btn-clear" onclick="app.guestClear()">✕</button>
+        <button class="key-btn" onclick="app.guestPress('0')">0</button>
+        <button class="key-btn btn-check" onclick="app.confirmGuests()">✓</button>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <button class="room-tab-btn" style="background: #455a64;" onclick="app.showScreen('screen-tables')">Volver a Mesas</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================================================
+       PANTALLA 4: TOMA DE COMANDA Y MENÚ (100% EN ESPAÑOL)
+       ======================================================= -->
+  <section id="screen-order" class="screen">
+    <div class="pos-topbar">
+      <div class="pos-title-badge">
+        <span class="pos-logo" onclick="app.goHome()" style="cursor: pointer;">ALDELO POS</span>
+        <span class="pos-status-text" id="order-screen-table-status">Mesa Activa</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button class="room-tab-btn" style="background: #1565c0; font-size: 13px;" onclick="app.startRecall()">🔍 Buscar Orden</button>
+        <button class="room-tab-btn" style="background: #455a64; font-size: 13px;" onclick="app.showScreen('screen-tables')">Mesas</button>
+      </div>
+    </div>
+
+    <div class="order-workspace">
+      
+      <!-- IZQUIERDA: CATEGORÍAS -->
+      <aside class="categories-panel" id="categories-panel"></aside>
+
+      <!-- CENTRO: GRILLA DE PLATOS -->
+      <main class="products-panel" id="products-panel"></main>
+
+      <!-- COLUMNA CENTRAL DE ACCIONES ALDELO (IDÉNTICA A FOTO 1) -->
+      <aside class="action-column-panel">
+        <button class="ac-btn" onclick="app.actionModifiers()">Modificadores</button>
+        <button class="ac-btn" onclick="app.actionQuantity()">Cantidad</button>
+        <button class="ac-btn ac-btn-cancel" onclick="app.openCancelItemFlow()">Cancelar</button>
+        <button class="ac-btn" onclick="app.actionReorder()">Re-ordenar</button>
+        <button class="ac-btn" onclick="app.actionDiscount()">Descuentos</button>
+        <button class="ac-btn" onclick="app.actionSurcharge()">Sobrecargo</button>
+        <button class="ac-btn" onclick="app.actionHold()">Esperar</button>
+        <button class="ac-btn" onclick="app.actionDetails()">Detalles</button>
+        <button class="ac-btn" onclick="app.actionWeight()">Peso</button>
+        <button class="ac-btn" onclick="app.actionSplit()">Dividido</button>
+        <button class="ac-btn" onclick="app.actionCombine()">Combinar</button>
+      </aside>
+
+      <!-- DERECHA: PANEL DE TICKET / CUENTA -->
+      <aside class="ticket-panel">
+        
+        <!-- BARRA NARANJA DE MESERO ALDELO (FOTO 2) -->
+        <div class="ticket-top-server-bar">
+          <div class="server-avatar-btn"><span style="font-size: 20px;">👤</span><span style="font-size: 13px; font-weight: bold; margin-left: 2px;">+</span></div>
+          <div class="server-avatar-btn"><span style="font-size: 20px;">👤</span><span style="font-size: 13px; font-weight: bold; margin-left: 2px;">-</span></div>
+        </div>
+
+        <!-- ENCABEZADO MONOSPACE DEL TICKET (FOTO 2) -->
+        <div class="ticket-header-meta-block">
+          <div class="ticket-meta-line">
+            <span id="ticket-server-title">Mesero: Oscar</span>
+            <span>Estación: 1</span>
+          </div>
+          <div class="ticket-meta-divider"></div>
+          <div class="ticket-meta-line">
+            <span id="ticket-order-num-title"># de Orden: 1</span>
+            <span>Mesas</span>
+          </div>
+          <div class="ticket-meta-line">
+            <span id="ticket-table-title">Mesa: 21</span>
+            <span id="ticket-guests-title">Personas: 4</span>
+          </div>
+          <div class="ticket-meta-divider"></div>
+        </div>
+
+        <!-- CUERPO DEL TICKET CON NOTAS INDENTADAS -->
+        <div class="ticket-items-list" id="ticket-items-list">
+          <div style="text-align: center; color: #888; margin-top: 40px;">
+            Seleccione platos del menú para armar la comanda
+          </div>
+        </div>
+
+        <!-- BARRA CUENTAS CON FLECHAS ARRIBA Y ABAJO (FOTO 2) -->
+        <div class="ticket-cuentas-nav">
+          <button class="nav-tri-btn" onclick="app.scrollTicket(-60)">▲</button>
+          <span class="cuentas-label">Cuentas</span>
+          <button class="nav-tri-btn" onclick="app.scrollTicket(60)">▼</button>
+        </div>
+
+        <!-- TOTALES EN ESPAÑOL CLON ALDELO (FOTO 2) -->
+        <div class="ticket-totals-area">
+          <div class="tot-col-box">
+            <span class="tot-sub-lbl">Subtotal</span>
+            <span class="tot-sub-val" id="txt-subtotal">0,00</span>
+          </div>
+          <div class="tot-col-box">
+            <span class="tot-sub-lbl" id="lbl-tax-rate">Impuesto</span>
+            <span class="tot-sub-val" id="txt-tax">0,00</span>
+          </div>
+          <div class="tot-col-box" style="align-items: flex-end;">
+            <span class="tot-sub-lbl" style="color: #ff5252;">Total debido</span>
+            <span class="tot-sub-val due" id="txt-grand-total">$0,00</span>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- BARRA INFERIOR DE ACCIONES COMPLETA (FOTO 1 ALDELO POS) -->
+    <div class="order-bottom-actions-bar">
+      <button class="btn-ord-act btn-ord-cancel" onclick="app.cancelCurrentOrder()">Cancelar</button>
+      <button class="btn-ord-act" onclick="app.showScreen('screen-tables')">Mesas</button>
+      <button class="btn-ord-act" onclick="app.promptChangeGuests()">Personas</button>
+      <button class="btn-ord-act" onclick="app.showScreen('screen-tables')">Mesa</button>
+      <div class="btn-ord-act btn-ord-empty"></div>
+      <button class="btn-ord-act" onclick="app.showToast('Nombre del cliente')">Nombre<br>del cliente</button>
+      <button class="btn-ord-act" onclick="app.showToast('Alertador (pager) activado')">Alertador<br>(pager)</button>
+      <button class="btn-ord-act" onclick="app.showToast('Crédito')">Crédito</button>
+      <button class="btn-ord-act" onclick="app.showToast('Descontar la orden')">Descontar<br>la orden</button>
+      <button class="btn-ord-act" onclick="app.showToast('Misc')">Misc</button>
+      <button class="btn-ord-act btn-ord-cadena" onclick="app.submitOrderToKitchen(true)">Cadena</button>
+      <button class="btn-ord-act btn-ord-listo" id="btn-submit-order" onclick="app.submitOrderToKitchen(false)">Listo</button>
+    </div>
+
+    <!-- BARRA INFERIOR DE ESTADO / HORA -->
+    <div class="order-bottom-status-bar">
+      <span id="order-clock">15/11/2026 22:21:13</span>
+      <span id="order-station-status">Estación 16</span>
+    </div>
+  </section>
+
+  <!-- MODAL: MODIFICADORES CON AUTO-AVANCE DIRECTO AL TOCAR -->
+  <div class="modal-overlay" id="modal-modifiers">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-modifier-title">Seleccionar Modificador</h3>
+        <span style="cursor: pointer; font-size: 24px; padding: 2px 8px;" onclick="app.closeModifierModal(false)">✕</span>
+      </div>
+      <div class="modal-options-grid" id="modal-modifier-options"></div>
+    </div>
+  </div>
+
+  <!-- MODAL PIN AUTORIZACIÓN PARA CANCELAR (FOTO 1 -> PIDE CÓDIGO) -->
+  <div class="modal-overlay" id="modal-cancel-pin">
+    <div class="modal-card" style="max-width: 360px;">
+      <div class="modal-header">
+        <h3 style="color: #ff5252;">Autorización de Cancelación</h3>
+        <span style="cursor: pointer; font-size: 24px;" onclick="app.closeCancelPinModal()">✕</span>
+      </div>
+      <div style="padding: 20px; display: flex; flex-direction: column; align-items: center;">
+        <div style="color: #bbb; margin-bottom: 12px; font-size: 14px;">Ingrese Código de Acceso</div>
+        <div class="pin-display-box" id="cancel-pin-display" style="border-color: #ff5252; margin-bottom: 20px;"></div>
+        <div class="keypad-grid" style="max-width: 280px;">
+          <button class="key-btn" onclick="app.cancelPinPress('7')">7</button>
+          <button class="key-btn" onclick="app.cancelPinPress('8')">8</button>
+          <button class="key-btn" onclick="app.cancelPinPress('9')">9</button>
+          <button class="key-btn" onclick="app.cancelPinPress('4')">4</button>
+          <button class="key-btn" onclick="app.cancelPinPress('5')">5</button>
+          <button class="key-btn" onclick="app.cancelPinPress('6')">6</button>
+          <button class="key-btn" onclick="app.cancelPinPress('1')">1</button>
+          <button class="key-btn" onclick="app.cancelPinPress('2')">2</button>
+          <button class="key-btn" onclick="app.cancelPinPress('3')">3</button>
+          <button class="key-btn btn-clear" onclick="app.cancelPinClear()">✕</button>
+          <button class="key-btn" onclick="app.cancelPinPress('0')">0</button>
+          <button class="key-btn btn-check" onclick="app.submitCancelPin()">✓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL REDUCIR ARTÍCULOS EXISTENTES (CLON EXACTO ALDELO FOTO 2) -->
+  <div class="modal-overlay" id="modal-reduce-items">
+    <div class="modal-card reduce-modal-card">
+      <div class="reduce-modal-header">
+        <span class="reduce-modal-title">Reducir artículos existentes</span>
+        <button class="reduce-top-check-btn" onclick="app.confirmReduceItems()">✓</button>
+      </div>
+      <div class="reduce-modal-body">
+        <!-- Columna Izquierda: Botones de Acción -->
+        <div class="reduce-left-actions">
+          <button class="reduce-act-btn" onclick="app.reduceSelectedItemQty()">
+            <div class="reduce-icon-circle green-minus">-</div>
+            <span>Reducir</span>
+          </button>
+          <button class="reduce-act-btn" onclick="app.cancelSelectedLine()">
+            <div class="reduce-icon-circle yellow-cancel">✕</div>
+            <span>Cancelar la línea</span>
+          </button>
+        </div>
+        <!-- Columna Central: Lista Blanca de Artículos -->
+        <div class="reduce-center-list-wrap">
+          <div class="reduce-white-list" id="reduce-white-list"></div>
+        </div>
+        <!-- Columna Derecha: Flechas Arriba y Abajo -->
+        <div class="reduce-right-nav">
+          <button class="reduce-scroll-btn" onclick="app.reduceScrollUp()">▲</button>
+          <button class="reduce-scroll-btn" onclick="app.reduceScrollDown()">▼</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NOTIFICAR IMPRESIÓN (CLON EXACTO ALDELO FOTO 3) -->
+  <div class="modal-overlay" id="modal-notify-print">
+    <div class="modal-card notify-modal-card">
+      <div class="notify-modal-header">
+        <span>Notificar</span>
+      </div>
+      <div class="notify-modal-body">
+        <h2>¿Imprimir recibo con informes de cocina/bar?</h2>
+        <div class="notify-btn-row">
+          <button class="notify-circle-btn notify-btn-no" onclick="app.finalizeItemCancel(false)">✕</button>
+          <button class="notify-circle-btn notify-btn-yes" onclick="app.finalizeItemCancel(true)">✓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CANTIDAD (NUMPAD PARA MODIFICAR CANTIDAD DE PLATO) -->
+  <div class="modal-overlay" id="modal-quantity">
+    <div class="modal-card" style="max-width: 320px;">
+      <div class="modal-header">
+        <h3>Cambiar Cantidad</h3>
+        <span style="cursor: pointer; font-size: 24px;" onclick="app.closeQuantityModal()">✕</span>
+      </div>
+      <div style="padding: 18px; display: flex; flex-direction: column; align-items: center;">
+        <div class="pin-display-box" id="qty-display-box" style="margin-bottom: 16px; font-size: 28px; border-color: #0070ba;">1</div>
+        <div class="keypad-grid" style="max-width: 260px;">
+          <button class="key-btn" onclick="app.qtyPress('7')">7</button>
+          <button class="key-btn" onclick="app.qtyPress('8')">8</button>
+          <button class="key-btn" onclick="app.qtyPress('9')">9</button>
+          <button class="key-btn" onclick="app.qtyPress('4')">4</button>
+          <button class="key-btn" onclick="app.qtyPress('5')">5</button>
+          <button class="key-btn" onclick="app.qtyPress('6')">6</button>
+          <button class="key-btn" onclick="app.qtyPress('1')">1</button>
+          <button class="key-btn" onclick="app.qtyPress('2')">2</button>
+          <button class="key-btn" onclick="app.qtyPress('3')">3</button>
+          <button class="key-btn btn-clear" onclick="app.qtyClear()">✕</button>
+          <button class="key-btn" onclick="app.qtyPress('0')">0</button>
+          <button class="key-btn btn-check" onclick="app.confirmQuantity()">✓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js?v=28"></script>
+</body>
+</html>
