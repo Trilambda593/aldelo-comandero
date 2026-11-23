@@ -24,8 +24,15 @@ const app = {
 
   // Cancel & Reduce flow state
   cancelPinEntered: "",
+  cancelAuthorizedEmployee: null,
+  pendingCancelAction: null, // "reduce" | "cancel_line"
   reduceSelectedIndex: 0,
-  qtyInputStr: "1",
+  reduceSnapshot: null,
+  cancelIsLoss: false,
+  cancelReason: "",
+  reasonCapsLock: true,
+  qtyInputStr: "",
+  pendingQuantity: 1,
 
   // Recall screen state
   recallFilter: "all",
@@ -43,6 +50,57 @@ const app = {
 
   setupKeyboard() {
     window.addEventListener('keydown', (e) => {
+      const cancelPinModal = document.getElementById('modal-cancel-pin');
+      if (cancelPinModal && cancelPinModal.classList.contains('active')) {
+        if (e.key >= '0' && e.key <= '9') {
+          this.cancelPinPress(e.key);
+        } else if (e.key === 'Backspace') {
+          this.cancelPinBackspace();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          this.submitCancelPin();
+        } else if (e.key === 'Escape') {
+          this.closeCancelPinModal();
+        }
+        return;
+      }
+
+      const reasonModal = document.getElementById('modal-cancel-reason');
+      if (reasonModal && reasonModal.classList.contains('active')) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.reasonFinish();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.reasonCancel();
+        }
+        return;
+      }
+
+      const lossModal = document.getElementById('modal-cancel-loss');
+      if (lossModal && lossModal.classList.contains('active')) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          this.cancelLossAbort();
+        }
+        return;
+      }
+
+      const qtyModal = document.getElementById('modal-quantity');
+      if (qtyModal && qtyModal.classList.contains('active')) {
+        if (e.key >= '0' && e.key <= '9') {
+          this.qtyPress(e.key);
+        } else if (e.key === 'Backspace') {
+          this.qtyBackspace();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          this.confirmQuantity();
+        } else if (e.key === 'Escape') {
+          this.qtyCancel();
+        }
+        return;
+      }
+
       const pinScreen = document.getElementById('screen-pin');
       if (pinScreen && pinScreen.classList.contains('active')) {
         if (e.key >= '0' && e.key <= '9') {
@@ -1221,6 +1279,7 @@ const app = {
     this.orderItems = [];
     this.currentOrderId = null;
     this.selectedTicketItemIndex = -1;
+    this.setPendingQuantity(1);
 
     const srvName = this.currentWaiter ? this.currentWaiter.name : "Oscar";
     const srvEl = document.getElementById('ticket-server-title');
@@ -1509,13 +1568,17 @@ const app = {
   },
 
   pushOrderItem(item, modifiers) {
+    const qty = this.pendingQuantity || 1;
     this.orderItems.push({
       item_id: item.id,
       name: item.name,
       unit_price: item.price,
-      quantity: 1,
+      quantity: qty,
       modifiers: modifiers || []
     });
+    if (qty > 1) {
+      this.setPendingQuantity(1);
+    }
     this.updateTicket();
   },
 
@@ -1674,12 +1737,6 @@ const app = {
   },
 
   actionQuantity() {
-    if (this.selectedTicketItemIndex < 0 || !this.orderItems[this.selectedTicketItemIndex]) {
-      this.showToast("Seleccione un plato del ticket primero", true);
-      return;
-    }
-    const item = this.orderItems[this.selectedTicketItemIndex];
-    if (item.cancelled) return;
     this.openQuantityModal();
   },
 
@@ -1712,49 +1769,91 @@ const app = {
   actionSplit() { this.showToast("Dividir cuenta en caja"); },
   actionCombine() { this.showToast("Combinar cuentas en caja"); },
 
-  // --- MODAL CANTIDAD ---
+  // --- MODAL CANTIDAD (FLUJO ALDELO: CANTIDAD -> SELECCIONAR PRODUCTO) ---
+  setPendingQuantity(q) {
+    const qty = Math.max(1, parseInt(q, 10) || 1);
+    this.pendingQuantity = qty;
+    const btn = document.getElementById('btn-action-quantity');
+    if (btn) {
+      if (qty > 1) {
+        btn.textContent = `Cantidad (${qty}x)`;
+        btn.classList.add('ac-btn-qty-active');
+      } else {
+        btn.textContent = 'Cantidad';
+        btn.classList.remove('ac-btn-qty-active');
+      }
+    }
+  },
   openQuantityModal() {
-    const item = this.orderItems[this.selectedTicketItemIndex];
-    this.qtyInputStr = String(item.quantity || 1);
-    document.getElementById('qty-display-box').textContent = this.qtyInputStr;
+    this.qtyInputStr = "";
+    const box = document.getElementById('qty-display-box');
+    if (box) box.textContent = "";
     document.getElementById('modal-quantity').classList.add('active');
   },
   closeQuantityModal() {
     document.getElementById('modal-quantity').classList.remove('active');
   },
   qtyPress(digit) {
-    if (this.qtyInputStr === "1" || this.qtyInputStr === "0") {
+    if (this.qtyInputStr === "0") {
       this.qtyInputStr = digit;
     } else if (this.qtyInputStr.length < 3) {
       this.qtyInputStr += digit;
     }
-    document.getElementById('qty-display-box').textContent = this.qtyInputStr;
+    const box = document.getElementById('qty-display-box');
+    if (box) box.textContent = this.qtyInputStr;
+  },
+  qtyBackspace() {
+    this.qtyInputStr = this.qtyInputStr.slice(0, -1);
+    const box = document.getElementById('qty-display-box');
+    if (box) box.textContent = this.qtyInputStr;
   },
   qtyClear() {
-    this.qtyInputStr = "1";
-    document.getElementById('qty-display-box').textContent = "1";
+    this.qtyInputStr = "";
+    const box = document.getElementById('qty-display-box');
+    if (box) box.textContent = "";
   },
-  confirmQuantity() {
-    const q = parseInt(this.qtyInputStr) || 1;
-    if (this.selectedTicketItemIndex >= 0 && this.orderItems[this.selectedTicketItemIndex]) {
-      this.orderItems[this.selectedTicketItemIndex].quantity = q;
-      this.updateTicket();
-    }
+  qtyCancel() {
+    this.qtyInputStr = "";
     this.closeQuantityModal();
   },
+  confirmQuantity() {
+    const q = parseInt(this.qtyInputStr, 10);
+    if (!q || q < 1) {
+      this.setPendingQuantity(1);
+      this.closeQuantityModal();
+      return;
+    }
+    this.setPendingQuantity(q);
+    this.closeQuantityModal();
+    this.showToast(`Cantidad: ${q}x — Seleccione el producto`);
+  },
 
-  // --- FLUJO COMPLETO CANCELAR / REDUCIR ARTÍCULOS (FOTOS 1, 2, 3, 4) ---
+  // --- FLUJO COMPLETO CANCELAR / REDUCIR ARTÍCULOS (SIN CLAVE AL ABRIR -> CLAVE NIVEL ALDELO AL REDUCIR/CANCELAR -> PERDIDAS/NO PERDIDAS -> RAZÓN -> NOTIFICAR) ---
   openCancelItemFlow() {
     if (this.orderItems.length === 0) {
       this.showToast("No hay artículos en la comanda para cancelar", true);
       return;
     }
+    // Sin clave al presionar Cancelar: abrir directamente Reducir artículos existentes
+    this.reduceSnapshot = JSON.parse(JSON.stringify(this.orderItems));
+    this.cancelAuthorizedEmployee = null;
+    this.pendingCancelAction = null;
+    this.cancelIsLoss = false;
+    this.cancelReason = "";
+    this.openReduceItemsModal();
+  },
+
+  openCancelPinModal(actionType) {
+    this.pendingCancelAction = actionType;
     this.cancelPinEntered = "";
-    document.getElementById('cancel-pin-display').textContent = "";
+    const disp = document.getElementById('cancel-pin-display');
+    if (disp) disp.textContent = "";
     document.getElementById('modal-cancel-pin').classList.add('active');
   },
 
   closeCancelPinModal() {
+    this.pendingCancelAction = null;
+    this.cancelPinEntered = "";
     document.getElementById('modal-cancel-pin').classList.remove('active');
   },
 
@@ -1762,10 +1861,12 @@ const app = {
     if (this.cancelPinEntered.length < 6) {
       this.cancelPinEntered += digit;
       document.getElementById('cancel-pin-display').textContent = "•".repeat(this.cancelPinEntered.length);
-      if (["1", "2", "3", "4", "5", "0"].includes(this.cancelPinEntered)) {
-        this.submitCancelPin();
-      }
     }
+  },
+
+  cancelPinBackspace() {
+    this.cancelPinEntered = this.cancelPinEntered.slice(0, -1);
+    document.getElementById('cancel-pin-display').textContent = "•".repeat(this.cancelPinEntered.length);
   },
 
   cancelPinClear() {
@@ -1774,26 +1875,42 @@ const app = {
   },
 
   async submitCancelPin() {
-    if (!this.cancelPinEntered) return;
+    if (!this.cancelPinEntered) {
+      this.showToast("Ingrese un código de acceso", true);
+      return;
+    }
     try {
       const res = await fetch('/api/auth/pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: this.cancelPinEntered })
+        body: JSON.stringify({ pin: this.cancelPinEntered, action: 'void' })
       });
       if (res.ok) {
+        const data = await res.json();
+        this.cancelAuthorizedEmployee = data.employee || { id: 1, name: "Supervisor" };
+        const actionToRun = this.pendingCancelAction;
         this.closeCancelPinModal();
-        this.openReduceItemsModal();
+        this.showToast(`Autorizado: ${this.cancelAuthorizedEmployee.name}`);
+        if (actionToRun === 'reduce') {
+          this.reduceSelectedItemQty();
+        } else if (actionToRun === 'cancel_line') {
+          this.cancelSelectedLine();
+        }
       } else {
-        this.showToast("Código de acceso incorrecto", true);
+        let errMsg = "Código de acceso incorrecto o sin permiso para anular";
+        try {
+          const errData = await res.json();
+          if (errData && errData.detail) errMsg = errData.detail;
+        } catch (e) {}
+        this.showToast(errMsg, true);
         this.cancelPinClear();
       }
     } catch (e) {
-      this.showToast("Error de conexión", true);
+      this.showToast("Error de conexión al validar permiso", true);
     }
   },
 
-  // FOTO 2: REDUCIR ARTÍCULOS EXISTENTES
+  // REDUCIR / CANCELAR ARTÍCULOS EXISTENTES
   openReduceItemsModal() {
     this.reduceSelectedIndex = (this.selectedTicketItemIndex >= 0) ? this.selectedTicketItemIndex : 0;
     this.renderReduceWhiteList();
@@ -1827,6 +1944,12 @@ const app = {
     const item = this.orderItems[this.reduceSelectedIndex];
     if (item.cancelled) return;
 
+    // Al momento de reducir: solicitar código con nivel de acceso configurado en Aldelo ('Void Order')
+    if (!this.cancelAuthorizedEmployee) {
+      this.openCancelPinModal('reduce');
+      return;
+    }
+
     if (item.quantity > 1) {
       item.quantity -= 1;
     } else {
@@ -1838,6 +1961,14 @@ const app = {
   cancelSelectedLine() {
     if (this.reduceSelectedIndex < 0 || !this.orderItems[this.reduceSelectedIndex]) return;
     const item = this.orderItems[this.reduceSelectedIndex];
+    if (item.cancelled) return;
+
+    // Al momento de cancelar línea: solicitar código con nivel de acceso configurado en Aldelo ('Void Order')
+    if (!this.cancelAuthorizedEmployee) {
+      this.openCancelPinModal('cancel_line');
+      return;
+    }
+
     item.cancelled = true;
     this.renderReduceWhiteList();
   },
@@ -1856,46 +1987,219 @@ const app = {
     }
   },
 
+  hasReduceChanges() {
+    if (!this.reduceSnapshot) return false;
+    for (let i = 0; i < this.orderItems.length; i++) {
+      const orig = this.reduceSnapshot[i];
+      const cur = this.orderItems[i];
+      if (!orig) continue;
+      if ((cur.cancelled === true) !== (orig.cancelled === true)) return true;
+      if (Number(cur.quantity) !== Number(orig.quantity)) return true;
+    }
+    return false;
+  },
+
   confirmReduceItems() {
     document.getElementById('modal-reduce-items').classList.remove('active');
-    // Abrir Foto 3: Notificar
+    if (!this.hasReduceChanges()) {
+      this.reduceSnapshot = null;
+      return;
+    }
+    // Paso siguiente: Perdidas / No perdidas
+    document.getElementById('modal-cancel-loss').classList.add('active');
+  },
+
+  cancelLossAbort() {
+    document.getElementById('modal-cancel-loss').classList.remove('active');
+    if (this.reduceSnapshot) {
+      this.orderItems = JSON.parse(JSON.stringify(this.reduceSnapshot));
+      this.reduceSnapshot = null;
+      this.updateTicket();
+    }
+  },
+
+  selectCancelLoss(isLoss) {
+    this.cancelIsLoss = !!isLoss;
+    document.getElementById('modal-cancel-loss').classList.remove('active');
+    // Paso siguiente: Razón de la cancelación
+    const inp = document.getElementById('cancel-reason-input');
+    if (inp) {
+      inp.value = "";
+    }
+    this.reasonCapsLock = true;
+    this.updateReasonKeyboardCapsUI();
+    document.getElementById('modal-cancel-reason').classList.add('active');
+    if (inp) {
+      setTimeout(() => inp.focus(), 60);
+    }
+  },
+
+  updateReasonKeyboardCapsUI() {
+    const capsBtn = document.getElementById('btn-reason-caps');
+    if (capsBtn) {
+      capsBtn.classList.toggle('caps-active', this.reasonCapsLock);
+    }
+    document.querySelectorAll('#modal-cancel-reason .aldelo-kbd-key[data-ch]').forEach(btn => {
+      const ch = btn.getAttribute('data-ch');
+      btn.textContent = this.reasonCapsLock ? ch.toUpperCase() : ch.toLowerCase();
+    });
+  },
+
+  reasonToggleCaps() {
+    this.reasonCapsLock = !this.reasonCapsLock;
+    this.updateReasonKeyboardCapsUI();
+  },
+
+  reasonKey(ch) {
+    const inp = document.getElementById('cancel-reason-input');
+    if (!inp) return;
+    const out = (ch.length === 1 && /[A-Za-z]/.test(ch))
+      ? (this.reasonCapsLock ? ch.toUpperCase() : ch.toLowerCase())
+      : ch;
+    const start = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
+    const end = inp.selectionEnd != null ? inp.selectionEnd : inp.value.length;
+    inp.value = inp.value.slice(0, start) + out + inp.value.slice(end);
+    const pos = start + out.length;
+    inp.focus();
+    inp.setSelectionRange(pos, pos);
+  },
+
+  reasonBackspace() {
+    const inp = document.getElementById('cancel-reason-input');
+    if (!inp) return;
+    const start = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
+    const end = inp.selectionEnd != null ? inp.selectionEnd : inp.value.length;
+    if (start !== end) {
+      inp.value = inp.value.slice(0, start) + inp.value.slice(end);
+      inp.focus();
+      inp.setSelectionRange(start, start);
+    } else if (start > 0) {
+      inp.value = inp.value.slice(0, start - 1) + inp.value.slice(end);
+      inp.focus();
+      inp.setSelectionRange(start - 1, start - 1);
+    }
+  },
+
+  reasonClear() {
+    const inp = document.getElementById('cancel-reason-input');
+    if (!inp) return;
+    inp.value = "";
+    inp.focus();
+  },
+
+  reasonHome() {
+    const inp = document.getElementById('cancel-reason-input');
+    if (!inp) return;
+    inp.focus();
+    inp.setSelectionRange(0, 0);
+  },
+
+  reasonEnd() {
+    const inp = document.getElementById('cancel-reason-input');
+    if (!inp) return;
+    const len = inp.value.length;
+    inp.focus();
+    inp.setSelectionRange(len, len);
+  },
+
+  reasonMove(delta) {
+    const inp = document.getElementById('cancel-reason-input');
+    if (!inp) return;
+    const pos = Math.max(0, Math.min(inp.value.length, (inp.selectionStart || 0) + delta));
+    inp.focus();
+    inp.setSelectionRange(pos, pos);
+  },
+
+  reasonCancel() {
+    document.getElementById('modal-cancel-reason').classList.remove('active');
+    if (this.reduceSnapshot) {
+      this.orderItems = JSON.parse(JSON.stringify(this.reduceSnapshot));
+      this.reduceSnapshot = null;
+      this.updateTicket();
+    }
+    this.showToast("Cancelación anulada");
+  },
+
+  reasonFinish() {
+    const inp = document.getElementById('cancel-reason-input');
+    const txt = inp ? inp.value.trim() : "";
+    if (!txt) {
+      this.showToast("Ingrese la razón de la cancelación", true);
+      if (inp) inp.focus();
+      return;
+    }
+    this.cancelReason = txt;
+    document.getElementById('modal-cancel-reason').classList.remove('active');
+    // Paso final: Notificar impresión a cocina/bar
     document.getElementById('modal-notify-print').classList.add('active');
   },
 
   async finalizeItemCancel(notifyKitchen) {
     document.getElementById('modal-notify-print').classList.remove('active');
 
-    // Si la orden ya está grabada en la base de datos de Aldelo
-    if (this.currentOrderId) {
-      try {
-        const cancelledTxs = this.orderItems.filter(it => it.cancelled && it.tx_id).map(it => it.tx_id);
-        const cancelledItemsMeta = this.orderItems.filter(it => it.cancelled).map(it => ({ name: it.name, quantity: it.quantity }));
-        
-        if (cancelledTxs.length > 0) {
-          await fetch(`/api/orders/${this.currentOrderId}/void-items`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              transaction_ids: cancelledTxs,
-              items: cancelledItemsMeta,
-              notify_kitchen: notifyKitchen,
-              table_num: String(this.selectedTable.number || this.selectedTable.id),
-              waiter_name: this.currentWaiter ? this.currentWaiter.name : "Mesero"
-            })
-          });
+    const snapshot = this.reduceSnapshot || [];
+    const newlyCancelledTxs = [];
+    const reducedItemsPayload = [];
+    const kitchenCancelledItems = [];
+
+    this.orderItems.forEach((cur, idx) => {
+      const orig = snapshot[idx];
+      if (!orig) return;
+      const wasCancelled = (orig.cancelled === true);
+      const isNowCancelled = (cur.cancelled === true);
+
+      if (!wasCancelled && isNowCancelled) {
+        if (cur.tx_id) {
+          newlyCancelledTxs.push(cur.tx_id);
         }
+        kitchenCancelledItems.push({ name: cur.name, quantity: orig.quantity || 1 });
+      } else if (!isNowCancelled && Number(cur.quantity) < Number(orig.quantity)) {
+        const diff = Number(orig.quantity) - Number(cur.quantity);
+        if (cur.tx_id) {
+          reducedItemsPayload.push({ tx_id: cur.tx_id, new_qty: Number(cur.quantity) });
+        }
+        kitchenCancelledItems.push({ name: cur.name, quantity: diff });
+      }
+    });
+
+    // Si la orden ya está grabada en la base de datos de Aldelo
+    if (this.currentOrderId && (newlyCancelledTxs.length > 0 || reducedItemsPayload.length > 0)) {
+      try {
+        await fetch(`/api/orders/${this.currentOrderId}/void-items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transaction_ids: newlyCancelledTxs,
+            reduced_items: reducedItemsPayload,
+            items: kitchenCancelledItems,
+            notify_kitchen: notifyKitchen,
+            table_num: String(this.selectedTable.number || this.selectedTable.id),
+            waiter_name: this.currentWaiter ? this.currentWaiter.name : "Mesero",
+            employee_id: this.cancelAuthorizedEmployee ? this.cancelAuthorizedEmployee.id : (this.currentWaiter ? this.currentWaiter.id : 1),
+            is_loss: this.cancelIsLoss,
+            reason: this.cancelReason
+          })
+        });
       } catch (e) {
         console.error("Error voiding in DB:", e);
       }
+    } else if (!this.currentOrderId) {
+      // Si son platos aún no enviados, eliminar los marcados como cancelados de la lista local
+      this.orderItems = this.orderItems.filter(it => !it.cancelled);
     }
 
+    this.reduceSnapshot = null;
+    this.cancelAuthorizedEmployee = null;
+    this.pendingCancelAction = null;
     this.updateTicket();
-    this.showToast("Artículos cancelados con éxito");
+    const lossText = this.cancelIsLoss ? "Pérdida" : "No pérdidas";
+    this.showToast(`Cancelación registrada (${lossText})`);
   },
 
   cancelCurrentOrder() {
     this.orderItems = [];
     this.currentWaiter = null;
+    this.setPendingQuantity(1);
     this.showScreen('screen-home');
   },
 

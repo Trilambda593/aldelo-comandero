@@ -139,7 +139,21 @@ def get_connection():
     pythoncom.CoInitialize()
     conn = win32com.client.Dispatch("ADODB.Connection")
     db_path = get_database_path()
-    conn.Open(f"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={db_path};Mode=Share Deny None;Persist Security Info=False;")
+    providers = [
+        "Microsoft.ACE.OLEDB.12.0",
+        "Microsoft.ACE.OLEDB.16.0",
+        "Microsoft.Jet.OLEDB.4.0"
+    ]
+    last_err = None
+    for prov in providers:
+        try:
+            conn.Open(f"Provider={prov};Data Source={db_path};Mode=Share Deny None;Persist Security Info=False;")
+            return conn
+        except Exception as e:
+            last_err = e
+            continue
+    if last_err:
+        raise last_err
     return conn
 
 @with_db_lock
@@ -514,6 +528,52 @@ def get_tax_rate():
     return rate
 
 @with_db_lock
+def get_store_settings() -> Dict[str, Any]:
+    """Reads store profile and receipt settings directly from GeneralSettings in Aldelo Access database."""
+    conn = get_connection()
+    rs = win32com.client.Dispatch("ADODB.Recordset")
+    settings = {
+        "restaurant_name": "ALDELO RESTAURANT",
+        "premise_address": "",
+        "mailing_address": "",
+        "phone_number": "",
+        "sales_tax_rate": 15.0,
+        "guest_receipt_message": ""
+    }
+    try:
+        rs.Open("SELECT RestaurantName, PremiseAddress, MailingAddress, PhoneNumber, SalesTaxRate, GuestReceiptMessage FROM GeneralSettings", conn)
+        if not rs.EOF:
+            rname = rs.Fields("RestaurantName").Value
+            if rname and str(rname).strip():
+                settings["restaurant_name"] = str(rname).strip()
+            
+            paddr = rs.Fields("PremiseAddress").Value
+            if paddr and str(paddr).strip():
+                settings["premise_address"] = str(paddr).strip()
+
+            maddr = rs.Fields("MailingAddress").Value
+            if maddr and str(maddr).strip():
+                settings["mailing_address"] = str(maddr).strip()
+
+            phone = rs.Fields("PhoneNumber").Value
+            if phone and str(phone).strip():
+                settings["phone_number"] = str(phone).strip()
+
+            tax_val = rs.Fields("SalesTaxRate").Value
+            if tax_val is not None:
+                settings["sales_tax_rate"] = float(tax_val)
+
+            gmsg = rs.Fields("GuestReceiptMessage").Value
+            if gmsg and str(gmsg).strip():
+                settings["guest_receipt_message"] = str(gmsg).strip()
+        rs.Close()
+    except Exception as e:
+        print(f"[get_store_settings] Note: {e}")
+    finally:
+        conn.Close()
+    return settings
+
+@with_db_lock
 def create_order(table_id: int, employee_id: int, guests: int, items: List[Dict[str, Any]]):
     conn = get_connection()
     tax_rate = get_tax_rate()
@@ -845,7 +905,7 @@ def get_order_details(order_id: int) -> Optional[Dict[str, Any]]:
     rs_h = win32com.client.Dispatch("ADODB.Recordset")
     rs_h.Open(f"""
     SELECT oh.OrderID, oh.OrderDateTime, oh.OrderStatus, oh.OrderType, oh.DineInTableID, dt.DineInTableText, 
-           oh.EmployeeID, ef.FirstName, ef.LastName, oh.GuestNumber, oh.SubTotal, oh.SalesTaxRate, oh.SalesTaxAmountUsed, oh.AmountDue
+           oh.StationID, oh.EmployeeID, ef.FirstName, ef.LastName, oh.GuestNumber, oh.SubTotal, oh.SalesTaxRate, oh.SalesTaxAmountUsed, oh.AmountDue
     FROM ((OrderHeaders oh
     LEFT JOIN DineInTables dt ON oh.DineInTableID = dt.DineInTableID)
     LEFT JOIN EmployeeFiles ef ON oh.EmployeeID = ef.EmployeeID)
@@ -883,6 +943,14 @@ def get_order_details(order_id: int) -> Optional[Dict[str, Any]]:
     if tot == 0.0 and subtot > 0:
         tot = subtot + tax_amt
 
+    st_id = get_station_id()
+    try:
+        val_st = rs_h.Fields("StationID").Value
+        if val_st is not None:
+            st_id = int(val_st)
+    except Exception:
+        pass
+
     tbl_id = int(rs_h.Fields("DineInTableID").Value or 0)
     acct_num = 1
     tot_accts = 1
@@ -902,6 +970,7 @@ def get_order_details(order_id: int) -> Optional[Dict[str, Any]]:
 
     order_data = {
         "order_id": int(rs_h.Fields("OrderID").Value),
+        "station_id": st_id,
         "account_number": acct_num,
         "total_accounts": tot_accts,
         "status_code": status_code,
@@ -922,11 +991,10 @@ def get_order_details(order_id: int) -> Optional[Dict[str, Any]]:
     }
     rs_h.Close()
     
-    # Query transactions
+    # Query transactions with ChitName & ReceiptName
     rs_tx = win32com.client.Dispatch("ADODB.Recordset")
     rs_tx.Open(f"""
-    SELECT ot.OrderTransactionID, ot.MenuItemID, mi.MenuItemText, ot.MenuItemUnitPrice, ot.Quantity, ot.ExtendedPrice,
-           ot.TransactionStatus, ot.Mod1ID, ot.Mod2ID, ot.Mod3ID, ot.Mod4ID
+    SELECT ot.*, mi.MenuItemText, mi.ReceiptName, mi.ChitName
     FROM OrderTransactions ot
     LEFT JOIN MenuItems mi ON ot.MenuItemID = mi.MenuItemID
     WHERE ot.OrderID = {order_id}
@@ -937,22 +1005,41 @@ def get_order_details(order_id: int) -> Optional[Dict[str, Any]]:
     raw_txs = []
     while not rs_tx.EOF:
         st = str(rs_tx.Fields("TransactionStatus").Value or "1").strip()
+        base_name = str(rs_tx.Fields("MenuItemText").Value or "").strip()
+        rec_name = str(rs_tx.Fields("ReceiptName").Value or "").strip()
+        chit_name = str(rs_tx.Fields("ChitName").Value or "").strip()
+        uprice = float(rs_tx.Fields("MenuItemUnitPrice").Value or 0.0)
+        qty = float(rs_tx.Fields("Quantity").Value or 1.0)
+        ext_price = float(rs_tx.Fields("ExtendedPrice").Value or (uprice * qty))
+
         tx = {
             "tx_id": int(rs_tx.Fields("OrderTransactionID").Value),
             "item_id": int(rs_tx.Fields("MenuItemID").Value),
-            "name": str(rs_tx.Fields("MenuItemText").Value or "").strip(),
-            "unit_price": float(rs_tx.Fields("MenuItemUnitPrice").Value or 0.0),
-            "quantity": float(rs_tx.Fields("Quantity").Value or 1.0),
-            "total": float(rs_tx.Fields("ExtendedPrice").Value or 0.0),
+            "name": base_name,
+            "receipt_name": rec_name or base_name,
+            "chit_name": chit_name or base_name,
+            "unit_price": uprice,
+            "quantity": qty,
+            "total": round(ext_price, 2),
             "cancelled": (st == "2"),
             "mods": []
         }
-        for i in range(1, 5):
-            mid = rs_tx.Fields(f"Mod{i}ID").Value
-            if mid:
-                mid = int(mid)
-                tx["mods"].append(mid)
-                mod_ids.add(mid)
+        for i in range(1, 21):
+            try:
+                mid = rs_tx.Fields(f"Mod{i}ID").Value
+                if mid is not None and str(mid).strip() != "":
+                    mid = int(mid)
+                    mcost = 0.0
+                    try:
+                        mcost_val = rs_tx.Fields(f"Mod{i}Cost").Value
+                        if mcost_val is not None:
+                            mcost = float(mcost_val)
+                    except Exception:
+                        pass
+                    tx["mods"].append({"id": mid, "cost": mcost})
+                    mod_ids.add(mid)
+            except Exception:
+                break
         raw_txs.append(tx)
         rs_tx.MoveNext()
     rs_tx.Close()
@@ -962,9 +1049,17 @@ def get_order_details(order_id: int) -> Optional[Dict[str, Any]]:
     if mod_ids:
         mid_list_str = ",".join(str(m) for m in mod_ids)
         rs_m = win32com.client.Dispatch("ADODB.Recordset")
-        rs_m.Open(f"SELECT MenuModifierID, MenuModifierText FROM MenuModifiers WHERE MenuModifierID IN ({mid_list_str})", conn)
+        rs_m.Open(f"SELECT MenuModifierID, MenuModifierText, ReceiptName, ChitName FROM MenuModifiers WHERE MenuModifierID IN ({mid_list_str})", conn)
         while not rs_m.EOF:
-            mod_name_map[int(rs_m.Fields("MenuModifierID").Value)] = str(rs_m.Fields("MenuModifierText").Value or "").strip()
+            mid = int(rs_m.Fields("MenuModifierID").Value)
+            mtext = str(rs_m.Fields("MenuModifierText").Value or "").strip()
+            mrec = str(rs_m.Fields("ReceiptName").Value or "").strip()
+            mchit = str(rs_m.Fields("ChitName").Value or "").strip()
+            mod_name_map[mid] = {
+                "name": mtext,
+                "receipt_name": mrec or mtext,
+                "chit_name": mchit or mtext
+            }
             rs_m.MoveNext()
         rs_m.Close()
         
@@ -973,24 +1068,75 @@ def get_order_details(order_id: int) -> Optional[Dict[str, Any]]:
             "tx_id": tx["tx_id"],
             "item_id": tx["item_id"],
             "name": tx["name"],
+            "receipt_name": tx["receipt_name"],
+            "chit_name": tx["chit_name"],
             "unit_price": tx["unit_price"],
             "quantity": tx["quantity"],
+            "total": tx["total"],
             "cancelled": tx["cancelled"],
-            "modifiers": [{"id": mid, "name": mod_name_map.get(mid, f"Mod #{mid}")} for mid in tx["mods"]]
+            "modifiers": [
+                {
+                    "id": m["id"],
+                    "name": mod_name_map.get(m["id"], {}).get("name", f"Mod #{m['id']}"),
+                    "receipt_name": mod_name_map.get(m["id"], {}).get("receipt_name", mod_name_map.get(m["id"], {}).get("name", f"Mod #{m['id']}")),
+                    "chit_name": mod_name_map.get(m["id"], {}).get("chit_name", mod_name_map.get(m["id"], {}).get("name", f"Mod #{m['id']}")),
+                    "cost": m["cost"]
+                }
+                for m in tx["mods"]
+            ]
         })
         
     conn.Close()
     return order_data
 
+def _insert_void_log(conn, order_id: int, tx_id: Optional[int], employee_id: int, reason: str, is_loss: bool, void_amount: float, for_reduction: bool = False):
+    """Inserta el registro oficial en OrderVoidLogs de Aldelo."""
+    try:
+        rs_log = win32com.client.Dispatch("ADODB.Recordset")
+        rs_log.Open("OrderVoidLogs", conn, 1, 3, 2)
+        rs_log.AddNew()
+        rs_log.Fields("OrderID").Value = int(order_id)
+        if tx_id is not None:
+            rs_log.Fields("OrderTransactionID").Value = int(tx_id)
+        rs_log.Fields("EmployeeID").Value = int(employee_id or 1)
+        loss_tag = "Perdida" if is_loss else "No perdidas"
+        clean_reason = (reason or "").strip()
+        full_reason = f"[{loss_tag}] {clean_reason}" if clean_reason else f"[{loss_tag}] Cancelado desde Comandero"
+        rs_log.Fields("VoidReason").Value = full_reason[:250]
+        rs_log.Fields("VoidDateTime").Value = datetime.now()
+        rs_log.Fields("VoidForItemReduction").Value = bool(for_reduction)
+        rs_log.Fields("VoidAmount").Value = round(float(void_amount or 0.0), 2)
+        rs_log.Fields("RowGUID").Value = f"{{{str(uuid.uuid4()).upper()}}}"
+        rs_log.Update()
+        rs_log.Close()
+    except Exception as log_err:
+        print(f"[_insert_void_log] Note: {log_err}")
+
 @with_db_lock
-def void_order_transactions(order_id: int, transaction_ids: List[int]) -> Dict[str, Any]:
-    """Marks specified transaction lines as CANCELLED (TransactionStatus='2') and recalculates totals."""
+def void_order_transactions(
+    order_id: int,
+    transaction_ids: List[int],
+    employee_id: int = 1,
+    reason: str = "",
+    is_loss: bool = False
+) -> Dict[str, Any]:
+    """Marks specified transaction lines as CANCELLED (TransactionStatus='2'), logs to OrderVoidLogs, and recalculates totals."""
     conn = get_connection()
     tax_rate = get_tax_rate()
     conn.BeginTrans()
     try:
         for tx_id in transaction_ids:
+            void_amt = 0.0
+            try:
+                rs_amt = win32com.client.Dispatch("ADODB.Recordset")
+                rs_amt.Open(f"SELECT ExtendedPrice FROM OrderTransactions WHERE OrderTransactionID = {int(tx_id)} AND OrderID = {int(order_id)}", conn)
+                if not rs_amt.EOF:
+                    void_amt = float(rs_amt.Fields("ExtendedPrice").Value or 0.0)
+                rs_amt.Close()
+            except Exception:
+                pass
             conn.Execute(f"UPDATE OrderTransactions SET TransactionStatus = '2', NotificationStatus = '2' WHERE OrderTransactionID = {int(tx_id)} AND OrderID = {int(order_id)}")
+            _insert_void_log(conn, order_id, tx_id, employee_id, reason, is_loss, void_amt, for_reduction=False)
         
         # Calculate active subtotal (excluding cancelled lines)
         rs_calc = win32com.client.Dispatch("ADODB.Recordset")
@@ -1025,8 +1171,15 @@ def void_order_transactions(order_id: int, transaction_ids: List[int]) -> Dict[s
         raise e
 
 @with_db_lock
-def reduce_order_transaction_qty(order_id: int, tx_id: int) -> Dict[str, Any]:
-    """Reduces the quantity of a transaction line by 1; if quantity <= 1, voids it."""
+def reduce_order_transaction_qty(
+    order_id: int,
+    tx_id: int,
+    new_qty: Optional[float] = None,
+    employee_id: int = 1,
+    reason: str = "",
+    is_loss: bool = False
+) -> Dict[str, Any]:
+    """Reduces the quantity of a transaction line (to new_qty or by 1); if <= 0, voids it. Logs to OrderVoidLogs."""
     conn = get_connection()
     tax_rate = get_tax_rate()
     conn.BeginTrans()
@@ -1034,18 +1187,22 @@ def reduce_order_transaction_qty(order_id: int, tx_id: int) -> Dict[str, Any]:
         rs_tx = win32com.client.Dispatch("ADODB.Recordset")
         rs_tx.Open(f"SELECT MenuItemUnitPrice, Quantity, ExtendedPrice, TransactionStatus FROM OrderTransactions WHERE OrderTransactionID = {int(tx_id)} AND OrderID = {int(order_id)}", conn, 1, 3)
         if not rs_tx.EOF:
-            qty = float(rs_tx.Fields("Quantity").Value or 1.0)
+            old_qty = float(rs_tx.Fields("Quantity").Value or 1.0)
             uprice = float(rs_tx.Fields("MenuItemUnitPrice").Value or 0.0)
-            if qty > 1.0:
-                new_qty = qty - 1.0
-                new_ext = round(new_qty * uprice, 2)
-                rs_tx.Fields("Quantity").Value = new_qty
+            old_ext = float(rs_tx.Fields("ExtendedPrice").Value or (old_qty * uprice))
+            target_qty = float(new_qty) if new_qty is not None else (old_qty - 1.0)
+            if target_qty >= 1.0:
+                new_ext = round(target_qty * uprice, 2)
+                void_amt = max(0.0, round(old_ext - new_ext, 2))
+                rs_tx.Fields("Quantity").Value = target_qty
                 rs_tx.Fields("ExtendedPrice").Value = new_ext
                 rs_tx.Update()
+                _insert_void_log(conn, order_id, tx_id, employee_id, reason, is_loss, void_amt, for_reduction=True)
             else:
                 rs_tx.Fields("TransactionStatus").Value = "2"
                 rs_tx.Fields("NotificationStatus").Value = "2"
                 rs_tx.Update()
+                _insert_void_log(conn, order_id, tx_id, employee_id, reason, is_loss, old_ext, for_reduction=True)
         rs_tx.Close()
         
         # Recalculate

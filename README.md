@@ -2,32 +2,48 @@
 
 Sistema táctil de comandas móviles para meseros que se sincroniza en tiempo real con **Aldelo POS for Restaurants**.
 
-## 🚀 Acceso Rápido
+---
 
-El servidor ya está en ejecución en tu PC:
-- **En esta PC:** [http://localhost:8000](http://localhost:8000)
-- **Desde iPhone / iPad / Android:** Abre tu navegador y entra a:
-  👉 **`http://192.168.100.129:8000`**
+## ⚡ Instalación y Auto-Inicio con Windows (Recomendado)
 
-### ¿Cómo usarlo como App nativa en el móvil?
-1. Abre el enlace en **Safari (iOS)** o **Chrome (Android)**.
-2. Toca el botón compartir / menú y selecciona **"Agregar a pantalla de inicio"**.
-3. Se abrirá a pantalla completa, sin barras de navegación, con aspecto y fluidez nativa.
+Para que el sistema funcione siempre en segundo plano y **continúe ejecutándose automáticamente cada vez que se reinicie o encienda Windows**:
+
+1. Haz doble clic en **`InstaladorServicioAldelo.exe`** (o ejecuta `INSTALAR_Y_ACTIVAR_SERVICIO.bat`).
+2. Acepta los permisos de Administrador (UAC).
+3. El instalador automáticamente:
+   - Desbloquea el puerto `8000` en el Firewall de Windows.
+   - Configura la red Wi-Fi en modo Privado (para permitir el acceso de las tablets).
+   - Instala los archivos en `C:\AldeloComandero`.
+   - Registra el servicio en el Programador de Tareas de Windows para arrancar automáticamente al inicio de Windows.
+   - Crea un acceso directo en tu Escritorio: **"Aldelo Comandero Servidor"**.
+   - Inicia el servicio inmediatamente sin necesidad de reiniciar.
 
 ---
 
-## 📱 Pantallas Clonadas de Aldelo
+## 🚀 Conexión de Tablets y Celulares (Meseros)
 
-1. **Login con PIN:** Ingreso rápido para meseros (ej. PIN `1` para Oscar).
-2. **Selector de Mesas:** Filtro por áreas (Main Dining Room, Patio, Banquet...) con rejilla gráfica de mesas en tiempo real.
-3. **Número de Comensales:** Teclado táctil para registrar la cantidad de personas.
-4. **Toma de Pedido / Menú:** Categorías laterales, grilla de platos con iconos oficiales de Aldelo y panel de ticket en vivo con cálculo automático de impuestos (7.5%).
-5. **Modificadores Dinámicos:** Ventana emergente paso a paso para platos con opciones obligatorias (ej. tipo de pan, guarnición).
-6. **Done / Enviar a Cocina:** Guarda la comanda directamente en `OrderHeaders` y `OrderTransactions` de `adResDemo.mdb` para que Aldelo la imprima y facture.
+- **Desde esta PC:** [http://localhost:8000](http://localhost:8000)
+- **Desde iPhone, iPad, Android o Tablets:**
+  👉 **`http://<IP-DE-ESTA-PC>:8000`** (por ejemplo: `http://192.168.3.58:8000`)
+
+### ¿Cómo usarlo como App nativa en la Tablet?
+1. Conecta la tablet a la **misma red Wi-Fi** del restaurante.
+2. Abre el navegador (**Safari** en iPad / **Chrome** en Android).
+3. Entra a `http://<IP-DE-ESTA-PC>:8000`.
+4. Pulsa en el menú y selecciona **"Agregar a inicio"** o **"Instalar aplicación"**.
+5. Se abrirá a pantalla completa como una aplicación instalada.
 
 ---
 
-## 🛠️ Iniciar el Servidor en el Futuro
+## 🛠️ Ejecución Manual / Portátil
 
-Simplemente haz doble clic en el archivo:
-`run_comandero.bat`
+Si deseas ejecutar el servidor directamente en una ventana sin instalarlo como servicio:
+- Haz doble clic en **`AldeloComandero.exe`** o ejecuta `run_comandero.bat`.
+- Si el servicio ya está activo en segundo plano, la ventana te mostrará el estado actual, el enlace para las tablets y opciones para abrir el navegador o reiniciar el servicio.
+
+---
+
+## 🗑️ Desinstalación del Servicio
+
+Si en algún momento deseas desactivar el servicio de arranque automático:
+- Ejecuta `C:\AldeloComandero\DESINSTALAR_SERVICIO.bat` como Administrador.

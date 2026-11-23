@@ -2,6 +2,8 @@ import os
 import sys
 import socket
 import json
+import subprocess
+import webbrowser
 
 # Force UTF-8 on Windows console output to prevent cp1252 / cp850 UnicodeEncodeError
 if sys.platform.startswith("win"):
@@ -34,6 +36,34 @@ def get_local_ip() -> str:
         return ip
     except Exception:
         return "127.0.0.1"
+
+def check_service_running(port: int = 8000) -> bool:
+    try:
+        import urllib.request
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/info", headers={"User-Agent": "AldeloHealthCheck"})
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode())
+                if data.get("system") == "Aldelo POS Bridge":
+                    return True
+    except Exception:
+        pass
+    return False
+
+def ensure_firewall_and_network():
+    """Silently attempts to open firewall port and set network to private if elevated."""
+    if sys.platform.startswith("win"):
+        try:
+            subprocess.run(
+                'netsh advfirewall firewall add rule name="Aldelo Comandero 8000" dir=in action=allow protocol=TCP localport=8000 profile=any',
+                shell=True, capture_output=True, timeout=3
+            )
+            subprocess.run(
+                'powershell -NoProfile -Command "Get-NetConnectionProfile | Set-NetConnectionProfile -NetworkCategory Private -ErrorAction SilentlyContinue"',
+                shell=True, capture_output=True, timeout=3
+            )
+        except Exception:
+            pass
 
 def check_or_configure_database():
     """Detects or configures the active Aldelo database."""
@@ -91,9 +121,47 @@ def is_port_in_use(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('127.0.0.1', port)) == 0
 
+def show_interactive_manager(port: int, local_ip: str, db_filename: str):
+    while True:
+        print("\n" + "=" * 68)
+        print("          >>> ALDELO COMANDERO MOVIL (Servidor POS) <<<")
+        print("=" * 68)
+        print(f"  [Estado]:          ACTIVO (Ejecutandose en segundo plano)")
+        print(f"  [Base de Datos]:   {db_filename}")
+        print(f"  [PC Local]:        http://localhost:{port}")
+        print(f"  [Movil / Tablet]:  http://{local_ip}:{port}")
+        print("-" * 68)
+        print("  [*] El servicio esta activo para recibir comandas de las tablets.")
+        print()
+        print("  Opciones:")
+        print("    [1] Abrir Comandero en el Navegador de este PC")
+        print("    [2] Reiniciar servicio de segundo plano")
+        print("    [3] Detener servicio")
+        print("    [4] Salir (El servicio seguira funcionando para las tablets)")
+        print("=" * 68)
+        try:
+            choice = input(" Seleccione una opcion (1-4) [default: 1]: ").strip()
+            if choice == "1" or choice == "":
+                webbrowser.open(f"http://localhost:{port}")
+            elif choice == "2":
+                print(" [i] Reiniciando servicio...")
+                subprocess.run('powershell -NoProfile -Command "Restart-ScheduledTask -TaskName \'AldeloComandero_Service\' -ErrorAction SilentlyContinue"', shell=True)
+                subprocess.run('taskkill /F /IM AldeloComandero.exe /T', shell=True, capture_output=True)
+                break
+            elif choice == "3":
+                print(" [i] Deteniendo servicio...")
+                subprocess.run('powershell -NoProfile -Command "Stop-ScheduledTask -TaskName \'AldeloComandero_Service\' -ErrorAction SilentlyContinue"', shell=True)
+                subprocess.run('taskkill /F /IM AldeloComandero.exe /T', shell=True, capture_output=True)
+                print(" [OK] Servicio detenido.")
+                break
+            elif choice == "4":
+                print(" [OK] Saliendo de la ventana de administracion. El servicio continua activo.")
+                break
+        except (KeyboardInterrupt, EOFError):
+            break
+
 def main():
-    db_path, db_origin = check_or_configure_database()
-    local_ip = get_local_ip()
+    ensure_firewall_and_network()
     
     port = 8000
     cfg_path = get_config_path()
@@ -105,9 +173,30 @@ def main():
         except Exception:
             pass
 
-    # Port conflict resolution
+    is_service_mode = "--service" in sys.argv
+    local_ip = get_local_ip()
+
+    # If the bridge is already actively responding on port 8000:
+    if check_service_running(port):
+        if is_service_mode:
+            # Service is already running, exit quietly
+            sys.exit(0)
+        else:
+            db_path = db.get_database_path()
+            db_filename = os.path.basename(db_path)
+            show_interactive_manager(port, local_ip, db_filename)
+            sys.exit(0)
+
+    db_path, db_origin = check_or_configure_database()
+
+    # If running as background service, start immediately with minimal logging
+    if is_service_mode:
+        uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+        return
+
+    # Port conflict resolution if not Aldelo bridge
     if is_port_in_use(port):
-        print(f" [!] Nota: El puerto {port} esta en uso. Buscando puerto disponible...")
+        print(f" [!] Nota: El puerto {port} esta en uso por otro programa. Buscando puerto disponible...")
         for alt_port in range(port + 1, port + 10):
             if not is_port_in_use(alt_port):
                 port = alt_port
@@ -135,9 +224,8 @@ def main():
     print("     * iOS (iPad/iPhone): Safari -> Compartir -> 'Agregar a inicio'.")
     print("     * Android: Chrome -> Menu (tres puntos) -> 'Instalar app' o 'Agregar a pantalla'.")
     print("=" * 68)
-    print("  Presione Ctrl+C en esta ventana para cerrar el servidor.\n")
+    print("  Presione Ctrl+C en esta ventana para cerrar el servidor manual.\n")
 
-    # Run uvicorn directly with app instance
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 if __name__ == "__main__":

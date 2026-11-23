@@ -1,7 +1,9 @@
 import sys
 import os
 
-sys.path.append(r"C:\Users\Steven V Dj\.gemini\antigravity\scratch\aldelo-comandero")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 from backend.main import app
 from fastapi.testclient import TestClient
 

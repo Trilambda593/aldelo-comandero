@@ -101,35 +101,84 @@ def get_info():
     }
 
 class VoidItemsRequest(BaseModel):
-    transaction_ids: List[int]
+    transaction_ids: List[int] = []
+    reduced_items: List[Dict[str, Any]] = []
     items: List[Dict[str, Any]] = []
     notify_kitchen: bool = False
     table_num: str = ""
     waiter_name: str = ""
+    employee_id: int = 1
+    is_loss: bool = False
+    reason: str = ""
 
 @app.post("/api/orders/{order_id}/void-items")
 def void_items(order_id: int, req: VoidItemsRequest):
     try:
-        res = db.void_order_transactions(order_id, req.transaction_ids)
+        res = {"success": True, "order_id": order_id}
+        if req.transaction_ids:
+            res = db.void_order_transactions(
+                order_id,
+                req.transaction_ids,
+                employee_id=req.employee_id,
+                reason=req.reason,
+                is_loss=req.is_loss
+            )
+        for red in req.reduced_items:
+            tx_id = red.get("tx_id")
+            new_qty = red.get("new_qty")
+            if tx_id is not None:
+                res = db.reduce_order_transaction_qty(
+                    order_id,
+                    int(tx_id),
+                    new_qty=new_qty,
+                    employee_id=req.employee_id,
+                    reason=req.reason,
+                    is_loss=req.is_loss
+                )
         if req.notify_kitchen and req.items:
-            printer.print_cancellation_ticket(req.table_num, req.waiter_name, req.items)
+            printer.print_cancellation_ticket(
+                req.table_num,
+                req.waiter_name,
+                req.items,
+                order_id=order_id,
+                is_loss=req.is_loss,
+                reason=req.reason
+            )
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 class ReduceQtyRequest(BaseModel):
     tx_id: int
+    new_qty: Optional[float] = None
     item_name: str = ""
     notify_kitchen: bool = False
     table_num: str = ""
     waiter_name: str = ""
+    employee_id: int = 1
+    is_loss: bool = False
+    reason: str = ""
 
 @app.post("/api/orders/{order_id}/reduce-qty")
 def reduce_qty(order_id: int, req: ReduceQtyRequest):
     try:
-        res = db.reduce_order_transaction_qty(order_id, req.tx_id)
+        res = db.reduce_order_transaction_qty(
+            order_id,
+            req.tx_id,
+            new_qty=req.new_qty,
+            employee_id=req.employee_id,
+            reason=req.reason,
+            is_loss=req.is_loss
+        )
         if req.notify_kitchen:
-            printer.print_cancellation_ticket(req.table_num, req.waiter_name, [{"name": req.item_name, "quantity": 1}])
+            printer.print_cancellation_ticket(
+                req.table_num,
+                req.waiter_name,
+                [{"name": req.item_name, "quantity": 1}],
+                order_id=order_id,
+                is_loss=req.is_loss,
+                reason=req.reason
+            )
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -339,6 +388,8 @@ def post_order(req: CreateOrderRequest):
             det = db.get_order_details(target_order_id)
             table_num = det.get("table_text") if det else str(req.table_id)
             waiter_name = det.get("waiter_name") if det else "Mesero"
+            is_reorder = (req.order_id is not None)
+            order_type = det.get("order_type", "Mesas") if det else "Mesas"
 
             printer.print_ticket(
                 target="kitchen",
@@ -346,7 +397,9 @@ def post_order(req: CreateOrderRequest):
                 waiter_name=waiter_name,
                 guests=req.guests,
                 order_id=target_order_id,
-                items=items_dict
+                items=items_dict,
+                is_reorder=is_reorder,
+                order_type=order_type
             )
         except Exception as pe:
             print(f"Non-fatal printer error: {pe}")

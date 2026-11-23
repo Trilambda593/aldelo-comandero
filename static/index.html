@@ -16,7 +16,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="/static/css/style.css?v=28">
+  <link rel="stylesheet" href="/static/css/style.css?v=30">
 </head>
 <body>
 
@@ -784,7 +784,7 @@
       <!-- COLUMNA CENTRAL DE ACCIONES ALDELO (IDÉNTICA A FOTO 1) -->
       <aside class="action-column-panel">
         <button class="ac-btn" onclick="app.actionModifiers()">Modificadores</button>
-        <button class="ac-btn" onclick="app.actionQuantity()">Cantidad</button>
+        <button class="ac-btn" id="btn-action-quantity" onclick="app.actionQuantity()">Cantidad</button>
         <button class="ac-btn ac-btn-cancel" onclick="app.openCancelItemFlow()">Cancelar</button>
         <button class="ac-btn" onclick="app.actionReorder()">Re-ordenar</button>
         <button class="ac-btn" onclick="app.actionDiscount()">Descuentos</button>
@@ -890,15 +890,15 @@
     </div>
   </div>
 
-  <!-- MODAL PIN AUTORIZACIÓN PARA CANCELAR (FOTO 1 -> PIDE CÓDIGO) -->
-  <div class="modal-overlay" id="modal-cancel-pin">
+  <!-- MODAL PIN AUTORIZACIÓN PARA CANCELAR / REDUCIR (VALIDA NIVEL DE SEGURIDAD ALDELO 'Void Order') -->
+  <div class="modal-overlay" id="modal-cancel-pin" style="z-index: 2600;">
     <div class="modal-card" style="max-width: 360px;">
       <div class="modal-header">
         <h3 style="color: #ff5252;">Autorización de Cancelación</h3>
         <span style="cursor: pointer; font-size: 24px;" onclick="app.closeCancelPinModal()">✕</span>
       </div>
       <div style="padding: 20px; display: flex; flex-direction: column; align-items: center;">
-        <div style="color: #bbb; margin-bottom: 12px; font-size: 14px;">Ingrese Código de Acceso</div>
+        <div style="color: #bbb; margin-bottom: 12px; font-size: 14px; text-align: center;">Ingrese Código de Acceso Autorizado (Aldelo)</div>
         <div class="pin-display-box" id="cancel-pin-display" style="border-color: #ff5252; margin-bottom: 20px;"></div>
         <div class="keypad-grid" style="max-width: 280px;">
           <button class="key-btn" onclick="app.cancelPinPress('7')">7</button>
@@ -966,33 +966,137 @@
     </div>
   </div>
 
-  <!-- MODAL CANTIDAD (NUMPAD PARA MODIFICAR CANTIDAD DE PLATO) -->
-  <div class="modal-overlay" id="modal-quantity">
-    <div class="modal-card" style="max-width: 320px;">
-      <div class="modal-header">
-        <h3>Cambiar Cantidad</h3>
-        <span style="cursor: pointer; font-size: 24px;" onclick="app.closeQuantityModal()">✕</span>
+  <!-- MODAL PERDIDAS / NO PERDIDAS (CLON EXACTO ALDELO) -->
+  <div class="modal-overlay aldelo-qty-overlay aldelo-loss-overlay" id="modal-cancel-loss">
+    <div class="aldelo-qty-title-badge aldelo-loss-badge">Perdidas/No<br>perdidas</div>
+    <div class="aldelo-loss-center">
+      <div class="aldelo-loss-prompt-box">Seleccione su opción...</div>
+      <div class="aldelo-loss-btn-row">
+        <button class="aldelo-loss-btn aldelo-loss-btn-no" onclick="app.selectCancelLoss(false)">No perdidas</button>
+        <button class="aldelo-loss-btn aldelo-loss-btn-yes" onclick="app.selectCancelLoss(true)">Perdida</button>
       </div>
-      <div style="padding: 18px; display: flex; flex-direction: column; align-items: center;">
-        <div class="pin-display-box" id="qty-display-box" style="margin-bottom: 16px; font-size: 28px; border-color: #0070ba;">1</div>
-        <div class="keypad-grid" style="max-width: 260px;">
-          <button class="key-btn" onclick="app.qtyPress('7')">7</button>
-          <button class="key-btn" onclick="app.qtyPress('8')">8</button>
-          <button class="key-btn" onclick="app.qtyPress('9')">9</button>
-          <button class="key-btn" onclick="app.qtyPress('4')">4</button>
-          <button class="key-btn" onclick="app.qtyPress('5')">5</button>
-          <button class="key-btn" onclick="app.qtyPress('6')">6</button>
-          <button class="key-btn" onclick="app.qtyPress('1')">1</button>
-          <button class="key-btn" onclick="app.qtyPress('2')">2</button>
-          <button class="key-btn" onclick="app.qtyPress('3')">3</button>
-          <button class="key-btn btn-clear" onclick="app.qtyClear()">✕</button>
-          <button class="key-btn" onclick="app.qtyPress('0')">0</button>
-          <button class="key-btn btn-check" onclick="app.confirmQuantity()">✓</button>
+    </div>
+  </div>
+
+  <!-- MODAL RAZÓN DE LA CANCELACIÓN (CLON EXACTO ALDELO CON TECLADO) -->
+  <div class="modal-overlay aldelo-qty-overlay aldelo-reason-overlay" id="modal-cancel-reason">
+    <div class="aldelo-qty-title-badge aldelo-reason-badge">Razón de la<br>cancelación</div>
+    <div class="aldelo-reason-container">
+      <div class="aldelo-reason-input-wrap">
+        <input type="text" id="cancel-reason-input" class="aldelo-reason-input" autocomplete="off" placeholder="Escriba la razón de la cancelación..." />
+      </div>
+
+      <div class="aldelo-kbd-grid">
+        <!-- BLOQUE IZQUIERDO: QWERTY -->
+        <div class="aldelo-kbd-alpha">
+          <div class="aldelo-kbd-row">
+            <button type="button" class="aldelo-kbd-key" data-ch="Q" onclick="app.reasonKey('Q')">Q</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="W" onclick="app.reasonKey('W')">W</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="E" onclick="app.reasonKey('E')">E</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="R" onclick="app.reasonKey('R')">R</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="T" onclick="app.reasonKey('T')">T</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="Y" onclick="app.reasonKey('Y')">Y</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="U" onclick="app.reasonKey('U')">U</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="I" onclick="app.reasonKey('I')">I</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="O" onclick="app.reasonKey('O')">O</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="P" onclick="app.reasonKey('P')">P</button>
+          </div>
+          <div class="aldelo-kbd-row aldelo-kbd-row-indent1">
+            <button type="button" class="aldelo-kbd-key" data-ch="A" onclick="app.reasonKey('A')">A</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="S" onclick="app.reasonKey('S')">S</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="D" onclick="app.reasonKey('D')">D</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="F" onclick="app.reasonKey('F')">F</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="G" onclick="app.reasonKey('G')">G</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="H" onclick="app.reasonKey('H')">H</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="J" onclick="app.reasonKey('J')">J</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="K" onclick="app.reasonKey('K')">K</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="L" onclick="app.reasonKey('L')">L</button>
+          </div>
+          <div class="aldelo-kbd-row aldelo-kbd-row-indent2">
+            <button type="button" class="aldelo-kbd-key" data-ch="Z" onclick="app.reasonKey('Z')">Z</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="X" onclick="app.reasonKey('X')">X</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="C" onclick="app.reasonKey('C')">C</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="V" onclick="app.reasonKey('V')">V</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="B" onclick="app.reasonKey('B')">B</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="N" onclick="app.reasonKey('N')">N</button>
+            <button type="button" class="aldelo-kbd-key" data-ch="M" onclick="app.reasonKey('M')">M</button>
+            <button type="button" class="aldelo-kbd-key" onclick="app.reasonKey(',')">,</button>
+          </div>
+          <div class="aldelo-kbd-row aldelo-kbd-row-bottom">
+            <button type="button" class="aldelo-kbd-blue aldelo-kbd-caps" id="btn-reason-caps" onclick="app.reasonToggleCaps()">Mayúscula</button>
+            <button type="button" class="aldelo-kbd-key aldelo-kbd-space" onclick="app.reasonKey(' ')">&nbsp;</button>
+            <button type="button" class="aldelo-kbd-blue aldelo-kbd-sm" onclick="app.reasonHome()">Casa</button>
+            <button type="button" class="aldelo-kbd-blue aldelo-kbd-sm aldelo-kbd-finish" onclick="app.reasonFinish()">Terminar</button>
+            <button type="button" class="aldelo-kbd-blue aldelo-kbd-clear" onclick="app.reasonClear()">Borrar</button>
+          </div>
+        </div>
+
+        <!-- BLOQUE CENTRO: RETROCEDER / ANULAR + FLECHAS -->
+        <div class="aldelo-kbd-mid">
+          <div class="aldelo-kbd-mid-top">
+            <button type="button" class="aldelo-kbd-blue aldelo-kbd-mid-btn" onclick="app.reasonBackspace()">Retroceder</button>
+            <button type="button" class="aldelo-kbd-blue aldelo-kbd-mid-btn" onclick="app.reasonCancel()">Anular</button>
+          </div>
+          <div class="aldelo-kbd-arrows">
+            <div class="aldelo-kbd-arrow-row">
+              <button type="button" class="aldelo-kbd-blue aldelo-kbd-arrow" onclick="app.reasonHome()">▲</button>
+            </div>
+            <div class="aldelo-kbd-arrow-row">
+              <button type="button" class="aldelo-kbd-blue aldelo-kbd-arrow" onclick="app.reasonMove(-1)">◀</button>
+              <button type="button" class="aldelo-kbd-blue aldelo-kbd-arrow" onclick="app.reasonEnd()">▼</button>
+              <button type="button" class="aldelo-kbd-blue aldelo-kbd-arrow" onclick="app.reasonMove(1)">▶</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOQUE DERECHO: TECLADO NUMÉRICO VERDE -->
+        <div class="aldelo-kbd-num">
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('7')">7</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('8')">8</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('9')">9</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('4')">4</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('5')">5</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('6')">6</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('1')">1</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('2')">2</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('3')">3</button>
+          <button type="button" class="aldelo-kbd-green" onclick="app.reasonKey('-')">-</button>
+          <button type="button" class="aldelo-kbd-green aldelo-kbd-green-zero" onclick="app.reasonKey('0')">0</button>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="/static/js/app.js?v=28"></script>
+  <!-- PANTALLA / MODAL CANTIDAD (ESTILO ALDELO POS - FOTO 2) -->
+  <div class="modal-overlay aldelo-qty-overlay" id="modal-quantity">
+    <div class="aldelo-qty-title-badge">Cantidad</div>
+    <div class="aldelo-qty-center">
+      <div class="aldelo-qty-input-row">
+        <div class="aldelo-qty-display" id="qty-display-box"></div>
+        <button class="aldelo-qty-backspace-btn" onclick="app.qtyBackspace()" title="Borrar">⌫</button>
+      </div>
+      <div class="aldelo-qty-keypad">
+        <button class="aldelo-qty-key" onclick="app.qtyPress('7')">7</button>
+        <button class="aldelo-qty-key" onclick="app.qtyPress('8')">8</button>
+        <button class="aldelo-qty-key" onclick="app.qtyPress('9')">9</button>
+
+        <button class="aldelo-qty-key" onclick="app.qtyPress('4')">4</button>
+        <button class="aldelo-qty-key" onclick="app.qtyPress('5')">5</button>
+        <button class="aldelo-qty-key" onclick="app.qtyPress('6')">6</button>
+
+        <button class="aldelo-qty-key" onclick="app.qtyPress('1')">1</button>
+        <button class="aldelo-qty-key" onclick="app.qtyPress('2')">2</button>
+        <button class="aldelo-qty-key" onclick="app.qtyPress('3')">3</button>
+
+        <button class="aldelo-qty-key aldelo-qty-key-cancel" onclick="app.qtyCancel()" title="Cancelar">
+          <span class="aldelo-qty-x-circle">✕</span>
+        </button>
+        <button class="aldelo-qty-key" onclick="app.qtyPress('0')">0</button>
+        <button class="aldelo-qty-key aldelo-qty-key-ok" onclick="app.confirmQuantity()" title="Aceptar">✓</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js?v=31"></script>
 </body>
 </html>

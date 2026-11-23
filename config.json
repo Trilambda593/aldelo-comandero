@@ -1,4 +1,6 @@
 {
-  "database_path": "C:\\Users\\Steven V Dj\\Videos\\PORTONES SONESTA.mdb",
-  "auto_registry": true
+  "database_path": "C:\\Users\\echoe\\Videos\\21 gramos nullomati\\21 GRAMOS BUIJO.mdb",
+  "auto_registry": true,
+  "station_id": 5,
+  "port": 8000
 }

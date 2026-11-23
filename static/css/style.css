@@ -2991,3 +2991,499 @@ body {
     display: none !important;
   }
 }
+
+
+/* =======================================================
+   VENTANA CANTIDAD ALDELO POS (ESTILO PANTALLA COMPLETA)
+   ======================================================= */
+.ac-btn.ac-btn-qty-active {
+  background: linear-gradient(180deg, #009e0f 0%, #006b0a 100%) !important;
+  border-color: #69f0ae !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 10px rgba(105, 240, 174, 0.55);
+}
+
+.aldelo-qty-overlay {
+  background:
+    radial-gradient(ellipse at 20% 80%, rgba(20, 75, 110, 0.45) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 25%, rgba(15, 60, 95, 0.35) 0%, transparent 55%),
+    linear-gradient(160deg, #050b12 0%, #0b1824 50%, #03070c 100%);
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+}
+
+.aldelo-qty-title-badge {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 76px;
+  background: #000000;
+  color: #76ff88;
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5px;
+  border-bottom-right-radius: 4px;
+}
+
+.aldelo-qty-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+}
+
+.aldelo-qty-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 318px;
+}
+
+.aldelo-qty-display {
+  flex: 1;
+  height: 54px;
+  background: #ffffff;
+  color: #000000;
+  font-size: 32px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 14px;
+  border-radius: 2px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.25);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  letter-spacing: 1px;
+}
+
+.aldelo-qty-backspace-btn {
+  width: 100px;
+  height: 54px;
+  border-radius: 27px;
+  background: #000000;
+  border: 2px solid #222222;
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
+}
+
+.aldelo-qty-backspace-btn:active {
+  transform: scale(0.94);
+  background: #1a1a1a;
+}
+
+.aldelo-qty-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  gap: 9px;
+}
+
+.aldelo-qty-key {
+  width: 100px;
+  height: 92px;
+  border-radius: 44px;
+  background: linear-gradient(180deg, #1686ff 0%, #006ce6 60%, #0058c4 100%);
+  border: 2px solid #3ca0ff;
+  color: #ffffff;
+  font-size: 38px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 5px 12px rgba(0, 0, 0, 0.55),
+    inset 0 2px 3px rgba(255, 255, 255, 0.3);
+  transition: transform 0.08s ease;
+  user-select: none;
+}
+
+.aldelo-qty-key:active {
+  transform: scale(0.93);
+  background: linear-gradient(180deg, #006ce6 0%, #004ea8 100%);
+}
+
+.aldelo-qty-x-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #006ce6;
+  font-size: 26px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.aldelo-qty-key-ok {
+  background: linear-gradient(180deg, #1686ff 0%, #006ce6 60%, #0058c4 100%);
+  font-size: 40px;
+}
+
+@media (max-width: 600px) {
+  .aldelo-qty-title-badge {
+    width: 150px;
+    height: 52px;
+    font-size: 18px;
+  }
+  .aldelo-qty-input-row {
+    width: 266px;
+  }
+  .aldelo-qty-backspace-btn {
+    width: 82px;
+    height: 48px;
+    font-size: 22px;
+  }
+  .aldelo-qty-display {
+    height: 48px;
+    font-size: 26px;
+  }
+  .aldelo-qty-keypad {
+    grid-template-columns: repeat(3, 82px);
+    gap: 8px;
+  }
+  .aldelo-qty-key {
+    width: 82px;
+    height: 76px;
+    font-size: 30px;
+  }
+}
+
+
+/* =======================================================
+   VENTANA PERDIDAS / NO PERDIDAS (ALDELO POS)
+   ======================================================= */
+.aldelo-loss-badge,
+.aldelo-reason-badge {
+  text-align: center;
+  line-height: 1.2;
+  font-size: 21px;
+  height: 82px;
+}
+
+.aldelo-loss-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 20px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.aldelo-loss-prompt-box {
+  width: 100%;
+  min-height: 98px;
+  background: #000000;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px 24px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+}
+
+.aldelo-loss-btn-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.aldelo-loss-btn {
+  width: 175px;
+  height: 96px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+  transition: transform 0.08s ease, filter 0.1s ease;
+}
+
+.aldelo-loss-btn:active {
+  transform: scale(0.95);
+  filter: brightness(0.92);
+}
+
+.aldelo-loss-btn-no {
+  background: linear-gradient(180deg, #009900 0%, #007700 100%);
+}
+
+.aldelo-loss-btn-yes {
+  background: linear-gradient(180deg, #ff1a1a 0%, #d50000 100%);
+}
+
+/* =======================================================
+   VENTANA RAZÓN DE LA CANCELACIÓN + TECLADO ALDELO POS
+   ======================================================= */
+.aldelo-reason-overlay {
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+.aldelo-reason-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 100px 18px 14px 18px;
+  box-sizing: border-box;
+}
+
+.aldelo-reason-input-wrap {
+  width: 92%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.aldelo-reason-input {
+  width: 100%;
+  height: 96px;
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #cfd8dc;
+  border-radius: 2px;
+  font-size: 28px;
+  font-weight: 700;
+  padding: 12px 18px;
+  box-sizing: border-box;
+  outline: none;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.aldelo-kbd-grid {
+  width: 100%;
+  max-width: 1220px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.aldelo-kbd-alpha {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aldelo-kbd-row {
+  display: flex;
+  gap: 5px;
+  justify-content: flex-start;
+}
+
+.aldelo-kbd-row-indent1 {
+  padding-left: 26px;
+}
+
+.aldelo-kbd-row-indent2 {
+  padding-left: 52px;
+}
+
+.aldelo-kbd-key {
+  width: 58px;
+  height: 52px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #ffffff 0%, #e6eaee 100%);
+  border: 2px solid #c5cdd4;
+  color: #000000;
+  font-size: 22px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.aldelo-kbd-key:active {
+  transform: scale(0.93);
+  background: #d0d7de;
+}
+
+.aldelo-kbd-space {
+  flex: 1;
+  min-width: 130px;
+  max-width: 240px;
+}
+
+.aldelo-kbd-blue {
+  height: 52px;
+  padding: 0 12px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #1b8aff 0%, #006be0 100%);
+  border: 2px solid #4ca6ff;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.aldelo-kbd-blue:active {
+  transform: scale(0.94);
+  filter: brightness(0.9);
+}
+
+.aldelo-kbd-caps {
+  min-width: 122px;
+}
+
+.aldelo-kbd-caps.caps-active {
+  background: linear-gradient(180deg, #00c853 0%, #008a34 100%);
+  border-color: #69f0ae;
+}
+
+.aldelo-kbd-sm {
+  min-width: 64px;
+  font-size: 13px;
+}
+
+.aldelo-kbd-finish {
+  background: linear-gradient(180deg, #00b84c 0%, #008535 100%);
+  border-color: #69f0ae;
+  min-width: 82px;
+}
+
+.aldelo-kbd-clear {
+  min-width: 108px;
+}
+
+.aldelo-kbd-mid {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 28px;
+}
+
+.aldelo-kbd-mid-top {
+  display: flex;
+  gap: 6px;
+}
+
+.aldelo-kbd-mid-btn {
+  min-width: 88px;
+  font-size: 13px;
+}
+
+.aldelo-kbd-arrows {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.aldelo-kbd-arrow-row {
+  display: flex;
+  gap: 5px;
+}
+
+.aldelo-kbd-arrow {
+  width: 56px;
+  height: 50px;
+  font-size: 18px;
+}
+
+.aldelo-kbd-num {
+  display: grid;
+  grid-template-columns: repeat(3, 58px);
+  gap: 6px;
+}
+
+.aldelo-kbd-green {
+  width: 58px;
+  height: 52px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #00a800 0%, #007a00 100%);
+  border: 2px solid #2bd12b;
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.aldelo-kbd-green:active {
+  transform: scale(0.93);
+}
+
+.aldelo-kbd-green-zero {
+  grid-column: span 2;
+  width: 122px;
+}
+
+@media (max-width: 960px) {
+  .aldelo-reason-container {
+    padding: 76px 8px 10px 8px;
+  }
+  .aldelo-reason-input {
+    height: 64px;
+    font-size: 20px;
+  }
+  .aldelo-kbd-grid {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .aldelo-kbd-num {
+    display: none;
+  }
+  .aldelo-kbd-mid {
+    flex-direction: row;
+    gap: 8px;
+  }
+  .aldelo-kbd-arrows {
+    display: none;
+  }
+  .aldelo-kbd-row-indent1 { padding-left: 10px; }
+  .aldelo-kbd-row-indent2 { padding-left: 20px; }
+  .aldelo-kbd-key {
+    width: 34px;
+    height: 42px;
+    font-size: 15px;
+  }
+  .aldelo-kbd-blue {
+    height: 42px;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+  .aldelo-kbd-caps { min-width: 74px; }
+  .aldelo-kbd-clear { min-width: 64px; }
+}
